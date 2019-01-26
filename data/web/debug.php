@@ -19,6 +19,7 @@ else {
       <span class="caret"></span></a>
       <ul class="dropdown-menu">
         <li role="presentation"><span class="dropdown-desc"><?=$lang['debug']['in_memory_logs'];?></span></li>
+        <li role="presentation"><a href="#tab-auth-logs" aria-controls="tab-auth-logs" role="tab" data-toggle="tab">System Auth</a></li>
         <li role="presentation"><a href="#tab-postfix-logs" aria-controls="tab-postfix-logs" role="tab" data-toggle="tab">Postfix</a></li>
         <li role="presentation"><a href="#tab-dovecot-logs" aria-controls="tab-dovecot-logs" role="tab" data-toggle="tab">Dovecot</a></li>
         <li role="presentation"><a href="#tab-sogo-logs" aria-controls="tab-sogo-logs" role="tab" data-toggle="tab">SOGo</a></li>
@@ -132,6 +133,23 @@ else {
               }
             ?>
             </ul>
+            </div>
+          </div>
+        </div>
+
+        <div role="tabpanel" class="tab-pane" id="tab-auth-logs">
+          <div class="panel panel-default">
+            <div class="panel-heading">System Auth <span class="badge badge-info table-lines"></span>
+              <div class="btn-group pull-right">
+                <button class="btn btn-xs btn-default add_log_lines" data-post-process="general_syslog" data-table="auth_log" data-log-url="auth" data-nrows="100">+ 100</button>
+                <button class="btn btn-xs btn-default add_log_lines" data-post-process="general_syslog" data-table="auth_log" data-log-url="auth" data-nrows="1000">+ 1000</button>
+                <button class="btn btn-xs btn-default refresh_table" data-draw="draw_auth_logs" data-table="auth_log"><?=$lang['admin']['refresh'];?></button>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="table-responsive">
+                <table class="table table-striped table-condensed" id="auth_log"></table>
+              </div>
             </div>
           </div>
         </div>

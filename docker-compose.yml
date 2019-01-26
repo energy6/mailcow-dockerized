@@ -48,6 +48,8 @@ services:
         - TZ=${TZ}
       dns:
         - ${IPV4_NETWORK:-172.22.1}.254
+      ports:
+       - "127.0.0.1:6379:6379"
       networks:
         mailcow-network:
           ipv4_address: ${IPV4_NETWORK:-172.22.1}.249

@@ -65,6 +65,39 @@ jQuery(function($){
       }
     });
   }
+  function draw_auth_logs() {
+    ft_auth_logs = FooTable.init('#auth_log', {
+      "columns": [
+        {"name":"time","formatter":function unix_time_format(tm) { var date = new Date(tm ? tm * 1000 : 0); return date.toLocaleString();},"title":lang.time,"style":{"width":"170px"}},
+        {"name":"priority","title":lang.priority,"style":{"width":"80px"}},
+        {"name":"program","title":lang.source,"style":{"width":"150px"}},
+        {"name":"message","title":lang.message},
+      ],
+      "rows": $.ajax({
+        dataType: 'json',
+        url: '/api/v1/get/logs/auth',
+        jsonp: false,
+        error: function () {
+          console.log('Cannot draw auth log table');
+        },
+        success: function (data) {
+          return process_table_data(data, 'general_syslog');
+        }
+      }),
+      "empty": lang.empty,
+      "paging": {"enabled": true,"limit": 5,"size": log_pagination_size},
+      "filtering": {"enabled": true,"delay": 1,"position": "left","placeholder": lang.filter_table},
+      "sorting": {"enabled": true},
+      "on": {
+        "ready.ft.table": function(e, ft){
+          table_log_ready(ft, 'auth_logs');
+        },
+        "after.ft.paging": function(e, ft){
+          table_log_paging(ft, 'auth_logs');
+        }
+      }
+    });
+  }
   function draw_postfix_logs() {
     ft_postfix_logs = FooTable.init('#postfix_log', {
       "columns": [
@@ -625,6 +658,7 @@ jQuery(function($){
     }
   })
   // Initial table drawings
+  draw_auth_logs();
   draw_postfix_logs();
   draw_autodiscover_logs();
   draw_dovecot_logs();

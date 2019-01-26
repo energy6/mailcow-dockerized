@@ -1304,6 +1304,20 @@ function get_logs($application, $lines = false) {
     }
   }
   // Redis
+  if ($application == "system-auth") {
+    if (isset($from) && isset($to)) {
+      $data = $redis->lRange('AUTH_LOG', $from - 1, $to - 1);
+    }
+    else {
+      $data = $redis->lRange('AUTH_LOG', 0, $lines);
+    }
+    if ($data) {
+      foreach ($data as $json_line) {
+        $data_array[] = json_decode($json_line, true);
+      }
+      return $data_array;
+    }
+  }
   if ($application == "dovecot-mailcow") {
     if (isset($from) && isset($to)) {
       $data = $redis->lRange('DOVECOT_MAILLOG', $from - 1, $to - 1);

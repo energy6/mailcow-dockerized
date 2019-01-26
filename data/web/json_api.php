@@ -406,6 +406,17 @@ if (isset($_SESSION['mailcow_cc_role']) || isset($_SESSION['pending_mailcow_cc_u
 
           case "logs":
             switch ($object) {
+              case "auth":
+                // 0 is first record, so empty is fine
+                if (isset($extra)) {
+                  $extra = preg_replace('/[^\d\-]/i', '', $extra);
+                  $logs = get_logs('system-auth', $extra);
+                }
+                else {
+                  $logs = get_logs('system-auth');
+                }
+                echo (isset($logs) && !empty($logs)) ? json_encode($logs, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) : '{}';
+              break;
               case "dovecot":
                 // 0 is first record, so empty is fine
                 if (isset($extra)) {
