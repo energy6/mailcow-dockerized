@@ -1,5 +1,72 @@
 # Change Log
 
+## [1.8.0](https://github.com/ddeboer/imap/tree/1.8.0) (2019-04-15)
+[Full Changelog](https://github.com/ddeboer/imap/compare/1.7.2...1.8.0)
+
+**Implemented enhancements:**
+
+- Add phpstan-strict-rules, expose PartiInterface::getDescription\(\) [\#409](https://github.com/ddeboer/imap/pull/409) ([Slamdunk](https://github.com/Slamdunk))
+
+## [1.7.2](https://github.com/ddeboer/imap/tree/1.7.2) (2019-04-12)
+[Full Changelog](https://github.com/ddeboer/imap/compare/1.7.1...1.7.2)
+
+**Fixed bugs:**
+
+- Handle message/rfc822 when content-disposition is missing [\#410](https://github.com/ddeboer/imap/pull/410) ([Daredzik](https://github.com/Daredzik))
+
+## [1.7.1](https://github.com/ddeboer/imap/tree/1.7.1) (2019-03-18)
+[Full Changelog](https://github.com/ddeboer/imap/compare/1.7.0...1.7.1)
+
+**Fixed bugs:**
+
+- Encoding problem with 1.7 [\#405](https://github.com/ddeboer/imap/issues/405)
+- imap\_search/imap\_sort: default params must not be passed if unspecified [\#406](https://github.com/ddeboer/imap/pull/406) ([Slamdunk](https://github.com/Slamdunk))
+
+## [1.7.0](https://github.com/ddeboer/imap/tree/1.7.0) (2019-03-04)
+[Full Changelog](https://github.com/ddeboer/imap/compare/1.6.0...1.7.0)
+
+**Implemented enhancements:**
+
+- Docker and Travis differs in handling new message eols [\#404](https://github.com/ddeboer/imap/pull/404) ([Slamdunk](https://github.com/Slamdunk))
+- Update PHP-CS-Fixer rules [\#403](https://github.com/ddeboer/imap/pull/403) ([Slamdunk](https://github.com/Slamdunk))
+- Add charset for imap\_search or imap\_sort [\#402](https://github.com/ddeboer/imap/pull/402) ([Slamdunk](https://github.com/Slamdunk))
+- PHPStan clean ups [\#400](https://github.com/ddeboer/imap/pull/400) ([Slamdunk](https://github.com/Slamdunk))
+- Adding an undelete\(\) message method [\#386](https://github.com/ddeboer/imap/pull/386) ([C-Duv](https://github.com/C-Duv))
+
+**Closed issues:**
+
+- Convert from GBK \(X-GBK\) to UTF-8 Issue [\#395](https://github.com/ddeboer/imap/issues/395)
+
+**Merged pull requests:**
+
+- Add new ResourceCheckFailureException to handle imap\_check\(\) false [\#399](https://github.com/ddeboer/imap/pull/399) ([pyatnitsev](https://github.com/pyatnitsev))
+- Remove GBK -\> X-GBK Alias and add X-GBK -\> GBK [\#396](https://github.com/ddeboer/imap/pull/396) ([pyatnitsev](https://github.com/pyatnitsev))
+- Add Feature Requests to README.md [\#394](https://github.com/ddeboer/imap/pull/394) ([Slamdunk](https://github.com/Slamdunk))
+
+## [1.6.0](https://github.com/ddeboer/imap/tree/1.6.0) (2018-12-04)
+[Full Changelog](https://github.com/ddeboer/imap/compare/1.5.5...1.6.0)
+
+**Implemented enhancements:**
+
+- Require PHP ^7.1 [\#257](https://github.com/ddeboer/imap/issues/257)
+- Require PHP ^7.1 [\#383](https://github.com/ddeboer/imap/pull/383) ([Slamdunk](https://github.com/Slamdunk))
+- Add ability to pass options and retries to imap\_open [\#382](https://github.com/ddeboer/imap/pull/382) ([Slamdunk](https://github.com/Slamdunk))
+- Docker setup for running tests [\#374](https://github.com/ddeboer/imap/pull/374) ([LeadTechVisas](https://github.com/LeadTechVisas))
+- Get messages by UID sequence [\#373](https://github.com/ddeboer/imap/pull/373) ([LeadTechVisas](https://github.com/LeadTechVisas))
+
+**Fixed bugs:**
+
+- Undeliverable mail: attachment parsing error [\#334](https://github.com/ddeboer/imap/issues/334)
+- imap\_getmailboxes returns false; [\#134](https://github.com/ddeboer/imap/issues/134)
+- Fix mailbox name as only numbers [\#381](https://github.com/ddeboer/imap/pull/381) ([Slamdunk](https://github.com/Slamdunk))
+- Gracefully handle possible non-array return value of imap\_getmailboxes [\#372](https://github.com/ddeboer/imap/pull/372) ([Slamdunk](https://github.com/Slamdunk))
+
+**Closed issues:**
+
+- \[AUTHENTICATIONFAILED\] Authentication failed - Too many login failures [\#368](https://github.com/ddeboer/imap/issues/368)
+- last folder in list [\#353](https://github.com/ddeboer/imap/issues/353)
+- Caching IMAP server connections [\#88](https://github.com/ddeboer/imap/issues/88)
+
 ## [1.5.5](https://github.com/ddeboer/imap/tree/1.5.5) (2018-08-21)
 [Full Changelog](https://github.com/ddeboer/imap/compare/1.5.4...1.5.5)
 

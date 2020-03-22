@@ -16,7 +16,7 @@ final class Attachment extends AbstractPart implements AttachmentInterface
      *
      * @return null|string
      */
-    public function getFilename()
+    public function getFilename(): ?string
     {
         return $this->getParameters()->get('filename')
             ?: $this->getParameters()->get('name');
@@ -25,11 +25,16 @@ final class Attachment extends AbstractPart implements AttachmentInterface
     /**
      * Get attachment file size.
      *
-     * @return int Number of bytes
+     * @return null|int Number of bytes
      */
     public function getSize()
     {
-        return $this->getParameters()->get('size');
+        $size = $this->getParameters()->get('size');
+        if (\is_numeric($size)) {
+            $size = (int) $size;
+        }
+
+        return $size;
     }
 
     /**

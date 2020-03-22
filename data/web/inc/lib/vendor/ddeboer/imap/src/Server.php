@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ddeboer\Imap;
 
 use Ddeboer\Imap\Exception\AuthenticationFailedException;
+use Ddeboer\Imap\Exception\ResourceCheckFailureException;
 
 /**
  * An IMAP server.
@@ -32,6 +33,16 @@ final class Server implements ServerInterface
     private $parameters;
 
     /**
+     * @var int Connection options
+     */
+    private $options;
+
+    /**
+     * @var int Retries number
+     */
+    private $retries;
+
+    /**
      * Constructor.
      *
      * @param string $hostname   Internet domain name or bracketed IP address
@@ -39,21 +50,27 @@ final class Server implements ServerInterface
      * @param string $port       TCP port number
      * @param string $flags      Optional flags
      * @param array  $parameters Connection parameters
+     * @param int    $options    Connection options
+     * @param int    $retries    Retries number
      */
     public function __construct(
         string $hostname,
         string $port = '993',
         string $flags = '/imap/ssl/validate-cert',
-        array $parameters = []
+        array $parameters = [],
+        int $options = 0,
+        int $retries = 1
     ) {
         if (!\function_exists('imap_open')) {
             throw new \RuntimeException('IMAP extension must be enabled');
         }
 
-        $this->hostname = $hostname;
-        $this->port = $port;
-        $this->flags = $flags ? '/' . \ltrim($flags, '/') : '';
+        $this->hostname   = $hostname;
+        $this->port       = $port;
+        $this->flags      = '' !== $flags ? '/' . \ltrim($flags, '/') : '';
         $this->parameters = $parameters;
+        $this->options    = $options;
+        $this->retries    = $retries;
     }
 
     /**
@@ -69,8 +86,8 @@ final class Server implements ServerInterface
     public function authenticate(string $username, string $password): ConnectionInterface
     {
         $errorMessage = null;
-        $errorNumber = 0;
-        \set_error_handler(function ($nr, $message) use (&$errorMessage, &$errorNumber) {
+        $errorNumber  = 0;
+        \set_error_handler(static function ($nr, $message) use (&$errorMessage, &$errorNumber) {
             $errorMessage = $message;
             $errorNumber = $nr;
         });
@@ -79,8 +96,8 @@ final class Server implements ServerInterface
             $this->getServerString(),
             $username,
             $password,
-            0,
-            1,
+            $this->options,
+            $this->retries,
             $this->parameters
         );
 
@@ -95,8 +112,17 @@ final class Server implements ServerInterface
         }
 
         $check = \imap_check($resource);
-        $mailbox = $check->Mailbox;
-        $connection = \substr($mailbox, 0, \strpos($mailbox, '}') + 1);
+
+        if (false === $check) {
+            throw new ResourceCheckFailureException('Resource check failure');
+        }
+
+        $mailbox       = $check->Mailbox;
+        $connection    = $mailbox;
+        $curlyPosition = \strpos($mailbox, '}');
+        if (false !== $curlyPosition) {
+            $connection = \substr($mailbox, 0, $curlyPosition + 1);
+        }
 
         // These are necessary to get rid of PHP throwing IMAP errors
         \imap_errors();

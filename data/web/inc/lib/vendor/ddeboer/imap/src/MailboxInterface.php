@@ -83,7 +83,16 @@ interface MailboxInterface extends \Countable, \IteratorAggregate
      *
      * @return MessageIteratorInterface
      */
-    public function getMessages(ConditionInterface $search = null, int $sortCriteria = null, bool $descending = false): MessageIteratorInterface;
+    public function getMessages(ConditionInterface $search = null, int $sortCriteria = null, bool $descending = false, string $charset = null): MessageIteratorInterface;
+
+    /**
+     * Get message iterator for a sequence.
+     *
+     * @param string $sequence Message numbers
+     *
+     * @return MessageIteratorInterface
+     */
+    public function getMessageSequence(string $sequence): MessageIteratorInterface;
 
     /**
      * Get a message by message number.
@@ -127,7 +136,7 @@ interface MailboxInterface extends \Countable, \IteratorAggregate
      *
      * @throws \Ddeboer\Imap\Exception\MessageMoveException
      */
-    public function move($numbers, self $mailbox);
+    public function move($numbers, self $mailbox): void;
 
     /**
      * Bulk copy messages.
@@ -137,5 +146,5 @@ interface MailboxInterface extends \Countable, \IteratorAggregate
      *
      * @throws \Ddeboer\Imap\Exception\MessageCopyException
      */
-    public function copy($numbers, self $mailbox);
+    public function copy($numbers, self $mailbox): void;
 }

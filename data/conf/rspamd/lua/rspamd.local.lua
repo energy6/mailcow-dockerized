@@ -7,6 +7,12 @@ rspamd_config.MAILCOW_AUTH = {
 	end
 }
 
+local monitoring_hosts = rspamd_config:add_map{
+  url = "/etc/rspamd/custom/monitoring_nolog.map",
+  description = "Monitoring hosts",
+  type = "regexp"
+}
+
 rspamd_config:register_symbol({
   name = 'KEEP_SPAM',
   type = 'prefilter',
@@ -23,7 +29,7 @@ rspamd_config:register_symbol({
     local redis_params = rspamd_parse_redis_server('keep_spam')
     local ip = task:get_from_ip()
 
-    if not ip:is_valid() then
+    if ip == nil or not ip:is_valid() then
       return false
     end
 
@@ -67,6 +73,25 @@ rspamd_config:register_symbol({
     end
   end,
   priority = 19
+})
+
+rspamd_config:register_symbol({
+  name = 'TLS_HEADER',
+  type = 'postfilter',
+  callback = function(task)
+    local rspamd_logger = require "rspamd_logger"
+    local tls_tag = task:get_request_header('TLS-Version')
+    if type(tls_tag) == 'nil' then
+      task:set_milter_reply({
+        add_headers = {['X-Last-TLS-Session-Version'] = 'None'}
+      })
+    else
+      task:set_milter_reply({
+        add_headers = {['X-Last-TLS-Session-Version'] = tostring(tls_tag)}
+      })
+    end
+  end,
+  priority = 12
 })
 
 rspamd_config:register_symbol({
@@ -174,6 +199,7 @@ rspamd_config:register_symbol({
     end
     return true
   end,
+  flags = 'empty',
   priority = 20
 })
 
@@ -182,7 +208,7 @@ rspamd_config:register_symbol({
   type = 'postfilter',
   callback = function(task)
     local from = task:get_header('From')
-    if from and (string.find(from, 'monitoring-system@everycloudtech.us', 1, true) or from == 'watchdog@localhost') then
+    if from and monitoring_hosts:get_key(from) then
       task:set_flag('no_log')
       task:set_flag('no_stat')
     end
