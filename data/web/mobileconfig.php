@@ -5,8 +5,11 @@ if (empty($mailcow_hostname)) {
   exit();
 }
 if (!isset($_SESSION['mailcow_cc_role']) || $_SESSION['mailcow_cc_role'] != 'user') {
-  header("Location: index.php");
-  die("This page is only available to logged-in users, not admins.");
+  session_destroy();
+  // probably better than appending the whole current http query string
+  $append_get = (isset($_GET['only_email'])) ? '&only_email' : '';
+  header('Location: index.php?mobileconfig' . $append_get);
+  die();
 }
 
 error_reporting(0);
@@ -22,7 +25,7 @@ try {
   $stmt = $pdo->prepare("SELECT `name` FROM `mailbox` WHERE `username`= :username");
   $stmt->execute(array(':username' => $email));
   $MailboxData = $stmt->fetch(PDO::FETCH_ASSOC);
-  $displayname = empty($MailboxData['name']) ? $email : $MailboxData['name'];
+  $displayname = htmlspecialchars(empty($MailboxData['name']) ? $email : $MailboxData['name'], ENT_NOQUOTES);
 }
 catch(PDOException $e) {
   $displayname = $email;

@@ -9,26 +9,27 @@ namespace Ddeboer\Imap\Message;
  */
 interface PartInterface extends \RecursiveIterator
 {
-    const TYPE_TEXT = 'text';
-    const TYPE_MULTIPART = 'multipart';
-    const TYPE_MESSAGE = 'message';
-    const TYPE_APPLICATION = 'application';
-    const TYPE_AUDIO = 'audio';
-    const TYPE_IMAGE = 'image';
-    const TYPE_VIDEO = 'video';
-    const TYPE_MODEL = 'model';
-    const TYPE_OTHER = 'other';
-    const TYPE_UNKNOWN = 'unknown';
+    public const TYPE_TEXT          = 'text';
+    public const TYPE_MULTIPART     = 'multipart';
+    public const TYPE_MESSAGE       = 'message';
+    public const TYPE_APPLICATION   = 'application';
+    public const TYPE_AUDIO         = 'audio';
+    public const TYPE_IMAGE         = 'image';
+    public const TYPE_VIDEO         = 'video';
+    public const TYPE_MODEL         = 'model';
+    public const TYPE_OTHER         = 'other';
+    public const TYPE_UNKNOWN       = 'unknown';
 
-    const ENCODING_7BIT = '7bit';
-    const ENCODING_8BIT = '8bit';
-    const ENCODING_BINARY = 'binary';
-    const ENCODING_BASE64 = 'base64';
-    const ENCODING_QUOTED_PRINTABLE = 'quoted-printable';
-    const ENCODING_UNKNOWN = 'unknown';
+    public const ENCODING_7BIT              = '7bit';
+    public const ENCODING_8BIT              = '8bit';
+    public const ENCODING_BINARY            = 'binary';
+    public const ENCODING_BASE64            = 'base64';
+    public const ENCODING_QUOTED_PRINTABLE  = 'quoted-printable';
+    public const ENCODING_UNKNOWN           = 'unknown';
 
-    const SUBTYPE_PLAIN = 'PLAIN';
-    const SUBTYPE_HTML = 'HTML';
+    public const SUBTYPE_PLAIN  = 'PLAIN';
+    public const SUBTYPE_HTML   = 'HTML';
+    public const SUBTYPE_RFC822 = 'RFC822';
 
     /**
      * Get message number (from headers).
@@ -40,42 +41,49 @@ interface PartInterface extends \RecursiveIterator
     /**
      * Part charset.
      *
-     * @return string
+     * @return null|string
      */
-    public function getCharset();
+    public function getCharset(): ?string;
 
     /**
      * Part type.
      *
      * @return null|string
      */
-    public function getType();
+    public function getType(): ?string;
 
     /**
      * Part subtype.
      *
      * @return null|string
      */
-    public function getSubtype();
+    public function getSubtype(): ?string;
 
     /**
      * Part encoding.
      *
      * @return null|string
      */
-    public function getEncoding();
+    public function getEncoding(): ?string;
 
     /**
      * Part disposition.
      *
      * @return null|string
      */
-    public function getDisposition();
+    public function getDisposition(): ?string;
+
+    /**
+     * Part description.
+     *
+     * @return null|string
+     */
+    public function getDescription(): ?string;
 
     /**
      * Part bytes.
      *
-     * @return null|string
+     * @return null|int|string
      */
     public function getBytes();
 
@@ -84,7 +92,7 @@ interface PartInterface extends \RecursiveIterator
      *
      * @return null|string
      */
-    public function getLines();
+    public function getLines(): ?string;
 
     /**
      * Part parameters.
