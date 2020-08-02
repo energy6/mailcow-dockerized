@@ -231,7 +231,7 @@ def permBan(net, unban=False):
       if rule not in chain.rules and not unban:
         logCrit('Add host/network %s to blacklist' % net)
         chain.insert_rule(rule)
-        r.hset('F2B_PERM_BANS', '%s' % net, int(round(time.time()))) 
+        r.hset('F2B_PERM_BANS', '%s' % net, int(round(time.time())))
       elif rule in chain.rules and unban:
         logCrit('Remove host/network %s from blacklist' % net)
         chain.delete_rule(rule)
@@ -246,7 +246,7 @@ def permBan(net, unban=False):
       if rule not in chain.rules and not unban:
         logCrit('Add host/network %s to blacklist' % net)
         chain.insert_rule(rule)
-        r.hset('F2B_PERM_BANS', '%s' % net, int(round(time.time()))) 
+        r.hset('F2B_PERM_BANS', '%s' % net, int(round(time.time())))
       elif rule in chain.rules and unban:
         logCrit('Remove host/network %s from blacklist' % net)
         chain.delete_rule(rule)
@@ -300,7 +300,7 @@ def watch():
             ip = ipaddress.ip_address(addr)
             if ip.is_private or ip.is_loopback:
               continue
-            logWarn('%s matched rule id %d (regex: %s)' % (addr, rule_id, rule_regex))
+            logWarn('%s matched rule id %d (%s)' % (addr, rule_id, item['data']))
             ban(addr)
 
 def snat4(snat_target):
@@ -324,7 +324,7 @@ def snat4(snat_target):
         chain = iptc.Chain(table, 'POSTROUTING')
         table.autocommit = False
         if get_snat4_rule() not in chain.rules:
-          logCrit('Added POSTROUTING rule for source network %s to SNAT target %s' % (get_snat4_rule().src, snat_target))  
+          logCrit('Added POSTROUTING rule for source network %s to SNAT target %s' % (get_snat4_rule().src, snat_target))
           chain.insert_rule(get_snat4_rule())
           table.commit()
         else:
@@ -335,7 +335,7 @@ def snat4(snat_target):
           table.commit()
         table.autocommit = True
       except:
-        print('Error running SNAT4, retrying...') 
+        print('Error running SNAT4, retrying...')
 
 def snat6(snat_target):
   global lock
@@ -369,7 +369,7 @@ def snat6(snat_target):
           table.commit()
         table.autocommit = True
       except:
-        print('Error running SNAT6, retrying...') 
+        print('Error running SNAT6, retrying...')
 
 def autopurge():
   while not quit_now:
@@ -435,7 +435,7 @@ def whitelistUpdate():
       if Counter(new_whitelist) != Counter(WHITELIST):
         WHITELIST = new_whitelist
         logInfo('Whitelist was changed, it has %s entries' % len(WHITELIST))
-    time.sleep(60.0 - ((time.time() - start_time) % 60.0)) 
+    time.sleep(60.0 - ((time.time() - start_time) % 60.0))
 
 def blacklistUpdate():
   global quit_now
@@ -446,7 +446,7 @@ def blacklistUpdate():
     new_blacklist = []
     if list:
       new_blacklist = genNetworkList(list)
-    if Counter(new_blacklist) != Counter(BLACKLIST): 
+    if Counter(new_blacklist) != Counter(BLACKLIST):
       addban = set(new_blacklist).difference(BLACKLIST)
       delban = set(BLACKLIST).difference(new_blacklist)
       BLACKLIST = new_blacklist
@@ -457,7 +457,7 @@ def blacklistUpdate():
       if delban:
         for net in delban:
           permBan(net=net, unban=True)
-    time.sleep(60.0 - ((time.time() - start_time) % 60.0)) 
+    time.sleep(60.0 - ((time.time() - start_time) % 60.0))
 
 def initChain():
   # Is called before threads start, no locking
@@ -498,7 +498,7 @@ if __name__ == '__main__':
   watch_thread.daemon = True
   watch_thread.start()
 
-  if os.getenv('SNAT_TO_SOURCE') and os.getenv('SNAT_TO_SOURCE') is not 'n':
+  if os.getenv('SNAT_TO_SOURCE') and os.getenv('SNAT_TO_SOURCE') != 'n':
     try:
       snat_ip = os.getenv('SNAT_TO_SOURCE')
       snat_ipo = ipaddress.ip_address(snat_ip)
@@ -509,7 +509,7 @@ if __name__ == '__main__':
     except ValueError:
       print(os.getenv('SNAT_TO_SOURCE') + ' is not a valid IPv4 address')
 
-  if os.getenv('SNAT6_TO_SOURCE') and os.getenv('SNAT6_TO_SOURCE') is not 'n':
+  if os.getenv('SNAT6_TO_SOURCE') and os.getenv('SNAT6_TO_SOURCE') != 'n':
     try:
       snat_ip = os.getenv('SNAT6_TO_SOURCE')
       snat_ipo = ipaddress.ip_address(snat_ip)
