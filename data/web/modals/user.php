@@ -4,6 +4,34 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
 	exit();
 }
 ?>
+<!-- change fido2 fn -->
+<div class="modal fade" id="fido2ChangeFn" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">×</span></button>
+        <h3 class="modal-title"><?=$lang['fido2']['set_fn'];?></h3>
+        <p class="help-block" style="word-break:break-all" id="fido2_subject_desc" data-fido2-subject=""></p>
+      </div>
+      <div class="modal-body">
+        <form class="form-horizontal" data-cached-form="false" data-id="fido2ChangeFn" role="form" method="post" autocomplete="off">
+          <input type="hidden" class="form-control" name="fido2_cid" id="fido2_cid">
+          <div class="form-group">
+            <label class="control-label col-sm-4" for="fido2_fn"><?=$lang['fido2']['fn'];?>:</label>
+            <div class="col-sm-8">
+              <input type="text" class="form-control" name="fido2_fn">
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="col-sm-offset-4 col-sm-8">
+              <button class="btn btn-xs-lg visible-xs-block visible-sm-inline visible-md-inline visible-lg-inline btn-success" data-action="edit_selected" data-id="fido2ChangeFn" data-item="null" data-api-url='edit/fido2-fn' data-api-attr='{}' href="#"><?=$lang['admin']['save'];?></button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div><!-- add domain admin modal -->
 <!-- add sync job modal -->
 <div class="modal fade" id="addSyncJobModal" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-lg">
@@ -44,9 +72,9 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
 						<label class="control-label col-sm-2" for="enc1"><?=$lang['add']['enc_method'];?></label>
 						<div class="col-sm-10">
 							<select name="enc1" title="<?=$lang['add']['select'];?>" required>
-                <option selected>TLS</option>
-                <option>SSL</option>
-                <option>PLAIN</option>
+                <option value="SSL" selected>SSL</option>
+                <option value="TLS">STARTTLS</option>
+                <option value="PLAIN">PLAIN</option>
 							</select>
 						</div>
 					</div>
@@ -154,7 +182,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
 					</div>
 					<div class="form-group">
 						<div class="col-sm-offset-2 col-sm-10">
-              <button class="btn btn-default" data-action="add_item" data-id="add_syncjob" data-api-url='add/syncjob' data-api-attr='{}' href="#"><?=$lang['admin']['add'];?></button>
+              <button class="btn btn-xs-lg visible-xs-block visible-sm-inline visible-md-inline visible-lg-inline btn-success" data-action="add_item" data-id="add_syncjob" data-api-url='add/syncjob' data-api-attr='{}' href="#"><?=$lang['admin']['add'];?></button>
 						</div>
 					</div>
 				</form>
@@ -200,7 +228,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
 					</div>
 					<div class="form-group">
 						<div class="col-sm-offset-2 col-sm-10">
-              <button class="btn btn-default" data-action="add_item" data-id="add_apppasswd" data-api-url='add/app-passwd' data-api-attr='{}' href="#"><?=$lang['admin']['add'];?></button>
+              <button class="btn btn-xs-lg visible-xs-block visible-sm-inline visible-md-inline visible-lg-inline btn-success" data-action="add_item" data-id="add_apppasswd" data-api-url='add/app-passwd' data-api-attr='{}' href="#"><?=$lang['admin']['add'];?></button>
 						</div>
 					</div>
 				</form>
@@ -212,7 +240,10 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
 <div class="modal fade" id="syncjobLogModal" tabindex="-1" role="dialog" aria-labelledby="syncjobLogModalLabel">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
-      <div class="modal-header"><h4 class="modal-title">Log</h4></div>
+      <div class="modal-header">
+	    <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">×</span></button>
+        <h3 class="modal-title">Log</h3>
+      </div>
       <div class="modal-body">
         <textarea class="form-control textarea-code" rows="20" id="logText" spellcheck="false"></textarea>
       </div>
@@ -221,6 +252,46 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
 </div><!-- log modal -->
 <!-- pw change modal -->
 <div class="modal fade" id="pwChangeModal" tabindex="-1" role="dialog" aria-labelledby="pwChangeModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+	    <div class="modal-header">
+	    <button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">×</span></button>
+        <h3 class="modal-title"><?=$lang['user']['change_password'];?></h3>
+      </div>
+      <div class="modal-body">
+        <form class="form-horizontal" data-cached-form="false" data-id="pwchange" role="form" method="post" autocomplete="off">
+          <div class="form-group">
+            <label class="control-label col-sm-3" for="user_new_pass"><?=$lang['user']['new_password'];?> (<a href="#" class="generate_password"><?=$lang['user']['generate'];?></a>)</label>
+            <div class="col-sm-5">
+            <input type="password" data-pwgen-field="true" data-hibp="true" class="form-control" name="user_new_pass" autocomplete="new-password" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="control-label col-sm-3" for="user_new_pass2"><?=$lang['user']['new_password_repeat'];?></label>
+            <div class="col-sm-5">
+            <input type="password" data-pwgen-field="true" class="form-control" name="user_new_pass2" autocomplete="new-password" required>
+            <p class="help-block"><?=$lang['user']['new_password_description'];?></p>
+            </div>
+          </div>
+          <hr>
+          <div class="form-group">
+            <label class="control-label col-sm-3" for="user_old_pass"><?=$lang['user']['password_now'];?></label>
+            <div class="col-sm-5">
+            <input type="password" class="form-control" name="user_old_pass" autocomplete="off" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="col-sm-offset-3 col-sm-9">
+              <button class="btn btn-xs-lg visible-xs-block visible-sm-inline visible-md-inline visible-lg-inline btn-success" data-action="edit_selected" data-id="pwchange" data-item="null" data-api-url='edit/self' data-api-attr='{}' href="#"><?=$lang['user']['change_password'];?></button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div><!-- pw change modal -->
+<!-- pw change modal -->
+<div class="modal fade" id="tempAliasModal" tabindex="-1" role="dialog" aria-labelledby="tempAliasModalLabel">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-body">
@@ -247,7 +318,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
           </div>
           <div class="form-group">
             <div class="col-sm-offset-3 col-sm-9">
-              <button class="btn btn-default" data-action="edit_selected" data-id="pwchange" data-item="null" data-api-url='edit/self' data-api-attr='{}' href="#"><?=$lang['user']['change_password'];?></button>
+              <button class="btn btn-xs-lg visible-xs-block visible-sm-inline visible-md-inline visible-lg-inline btn-success" data-action="edit_selected" data-id="pwchange" data-item="null" data-api-url='edit/self' data-api-attr='{}' href="#"><?=$lang['user']['change_password'];?></button>
             </div>
           </div>
         </form>

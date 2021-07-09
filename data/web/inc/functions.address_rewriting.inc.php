@@ -48,7 +48,8 @@ function bcc($_action, $_data = null, $attr = null) {
         $local_dest_sane = '@' . idn_to_ascii($local_dest, 0, INTL_IDNA_VARIANT_UTS46);
       }
       elseif (filter_var($local_dest, FILTER_VALIDATE_EMAIL)) {
-        if (!hasMailboxObjectAccess($_SESSION['mailcow_cc_username'], $_SESSION['mailcow_cc_role'], $local_dest)) {
+        $mailbox = mailbox('get', 'mailbox_details', $local_dest);
+        if ($mailbox === false && array_key_exists($local_dest, array_merge($direct_aliases, $shared_aliases)) === false) {
           $_SESSION['return'][] = array(
             'type' => 'danger',
             'log' => array(__FUNCTION__, $_action, $_data, $_attr),
@@ -56,10 +57,16 @@ function bcc($_action, $_data = null, $attr = null) {
           );
           return false;
         }
-        $domain = mailbox('get', 'mailbox_details', $local_dest)['domain'];
-        if (empty($domain)) {
-          return false;
+        if (!hasMailboxObjectAccess($_SESSION['mailcow_cc_username'], $_SESSION['mailcow_cc_role'], $local_dest) &&
+          !hasAliasObjectAccess($_SESSION['mailcow_cc_username'], $_SESSION['mailcow_cc_role'], $local_dest)) {
+            $_SESSION['return'][] = array(
+              'type' => 'danger',
+              'log' => array(__FUNCTION__, $_action, $_data, $_attr),
+              'msg' => 'access_denied'
+            );
+            return false;
         }
+        $domain = idn_to_ascii(substr(strstr($local_dest, '@'), 1), 0, INTL_IDNA_VARIANT_UTS46);
         $local_dest_sane = $local_dest;
       }
       else {
@@ -115,7 +122,7 @@ function bcc($_action, $_data = null, $attr = null) {
       foreach ($ids as $id) {
         $is_now = bcc('details', $id);
         if (!empty($is_now)) {
-          $active = (isset($_data['active'])) ? intval($_data['active']) : $is_now['active_int'];
+          $active = (isset($_data['active'])) ? intval($_data['active']) : $is_now['active'];
           $bcc_dest = (!empty($_data['bcc_dest'])) ? $_data['bcc_dest'] : $is_now['bcc_dest'];
           $local_dest = $is_now['local_dest'];
           $type = (!empty($_data['type'])) ? $_data['type'] : $is_now['type'];
@@ -180,8 +187,7 @@ function bcc($_action, $_data = null, $attr = null) {
       $stmt = $pdo->prepare("SELECT `id`,
         `local_dest`,
         `bcc_dest`,
-        `active` AS `active_int`,
-        CASE `active` WHEN 1 THEN '".$lang['mailbox']['yes']."' ELSE '".$lang['mailbox']['no']."' END AS `active`,
+        `active`,
         `type`,
         `created`,
         `domain`,
@@ -315,7 +321,7 @@ function recipient_map($_action, $_data = null, $attr = null) {
       foreach ($ids as $id) {
         $is_now = recipient_map('details', $id);
         if (!empty($is_now)) {
-          $active = (isset($_data['active'])) ? intval($_data['active']) : $is_now['active_int'];
+          $active = (isset($_data['active'])) ? intval($_data['active']) : $is_now['active'];
           $new_dest = (!empty($_data['recipient_map_new'])) ? $_data['recipient_map_new'] : $is_now['recipient_map_new'];
           $old_dest = (!empty($_data['recipient_map_old'])) ? $_data['recipient_map_old'] : $is_now['recipient_map_old'];
           if (substr($old_dest, 0, 1) == '@') {
@@ -389,8 +395,7 @@ function recipient_map($_action, $_data = null, $attr = null) {
       $stmt = $pdo->prepare("SELECT `id`,
         `old_dest` AS `recipient_map_old`,
         `new_dest` AS `recipient_map_new`,
-        `active` AS `active_int`,
-        CASE `active` WHEN 1 THEN '".$lang['mailbox']['yes']."' ELSE '".$lang['mailbox']['no']."' END AS `active`,
+        `active`,
         `created`,
         `modified` FROM `recipient_maps`
           WHERE `id` = :id");

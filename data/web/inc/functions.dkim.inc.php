@@ -21,7 +21,7 @@ function dkim($_action, $_data = null, $privkey = false) {
         if (!is_valid_domain_name($domain) || !is_numeric($key_length)) {
           $_SESSION['return'][] = array(
             'type' => 'danger',
-            'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+            'log' => array(__FUNCTION__, $_action, $_data),
             'msg' => array('dkim_domain_or_sel_invalid', $domain)
           );
           continue;
@@ -29,7 +29,7 @@ function dkim($_action, $_data = null, $privkey = false) {
         if ($redis->hGet('DKIM_PUB_KEYS', $domain)) {
           $_SESSION['return'][] = array(
             'type' => 'danger',
-            'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+            'log' => array(__FUNCTION__, $_action, $_data),
             'msg' => array('dkim_domain_or_sel_invalid', $domain)
           );
           continue;
@@ -37,7 +37,7 @@ function dkim($_action, $_data = null, $privkey = false) {
         if (!ctype_alnum(str_replace(['-', '_'], '', $dkim_selector))) {
           $_SESSION['return'][] = array(
             'type' => 'danger',
-            'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+            'log' => array(__FUNCTION__, $_action, $_data),
             'msg' => array('dkim_domain_or_sel_invalid', $domain)
           );
           continue;
@@ -50,10 +50,10 @@ function dkim($_action, $_data = null, $privkey = false) {
         if ($keypair_ressource = openssl_pkey_new($config)) {
           $key_details = openssl_pkey_get_details($keypair_ressource);
           $pubKey = implode(array_slice(
-              array_filter(
-                explode(PHP_EOL, $key_details['key'])
-              ), 1, -1)
-            );
+            array_filter(
+              explode(PHP_EOL, $key_details['key'])
+            ), 1, -1)
+          );
           // Save public key and selector to redis
           try {
             $redis->hSet('DKIM_PUB_KEYS', $domain, $pubKey);
@@ -62,7 +62,7 @@ function dkim($_action, $_data = null, $privkey = false) {
           catch (RedisException $e) {
             $_SESSION['return'][] = array(
               'type' => 'danger',
-              'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+              'log' => array(__FUNCTION__, $_action, $_data),
               'msg' => array('redis_error', $e)
             );
             continue;
@@ -76,7 +76,7 @@ function dkim($_action, $_data = null, $privkey = false) {
             catch (RedisException $e) {
               $_SESSION['return'][] = array(
                 'type' => 'danger',
-                'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+                'log' => array(__FUNCTION__, $_action, $_data),
                 'msg' => array('redis_error', $e)
               );
               continue;
@@ -84,14 +84,14 @@ function dkim($_action, $_data = null, $privkey = false) {
           }
           $_SESSION['return'][] = array(
             'type' => 'success',
-            'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+            'log' => array(__FUNCTION__, $_action, $_data),
             'msg' => array('dkim_added', $domain)
           );
         }
         else {
           $_SESSION['return'][] = array(
             'type' => 'danger',
-            'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+            'log' => array(__FUNCTION__, $_action, $_data),
             'msg' => array('dkim_domain_or_sel_invalid', $domain)
           );
           continue;
@@ -102,7 +102,7 @@ function dkim($_action, $_data = null, $privkey = false) {
       if ($_SESSION['mailcow_cc_role'] != "admin") {
         $_SESSION['return'][] = array(
           'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => 'access_denied'
         );
         return false;
@@ -112,7 +112,7 @@ function dkim($_action, $_data = null, $privkey = false) {
       if (empty($from_domain_dkim)) {
         $_SESSION['return'][] = array(
           'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => array('dkim_domain_or_sel_invalid', $from_domain)
         );
         continue;
@@ -128,14 +128,14 @@ function dkim($_action, $_data = null, $privkey = false) {
         catch (RedisException $e) {
           $_SESSION['return'][] = array(
             'type' => 'danger',
-            'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+            'log' => array(__FUNCTION__, $_action, $_data),
             'msg' => array('redis_error', $e)
           );
           continue;
         }
         $_SESSION['return'][] = array(
           'type' => 'success',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => array('dkim_duplicated', $from_domain, $to_domain)
         );
       }
@@ -144,18 +144,19 @@ function dkim($_action, $_data = null, $privkey = false) {
       if ($_SESSION['mailcow_cc_role'] != "admin") {
         $_SESSION['return'][] = array(
           'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => 'access_denied'
         );
         return false;
       }
       $private_key_input = trim($_data['private_key_file']);
+      $overwrite_existing = intval($_data['overwrite_existing']);
       $private_key_normalized = preg_replace('~\r\n?~', "\n", $private_key_input);
       $private_key = openssl_pkey_get_private($private_key_normalized);
       if ($ssl_error = openssl_error_string()) {
         $_SESSION['return'][] = array(
           'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => array('private_key_error', $ssl_error)
         );
         return false;
@@ -172,28 +173,31 @@ function dkim($_action, $_data = null, $privkey = false) {
       if (!is_valid_domain_name($domain)) {
         $_SESSION['return'][] = array(
           'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => array('dkim_domain_or_sel_invalid', $domain)
         );
         return false;
       }
       if ($redis->hGet('DKIM_PUB_KEYS', $domain)) {
-        $_SESSION['return'][] = array(
-          'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
-          'msg' => array('dkim_domain_or_sel_invalid', $domain)
-        );
-        return false;
+        if ($overwrite_existing == 0) {
+          $_SESSION['return'][] = array(
+            'type' => 'danger',
+            'log' => array(__FUNCTION__, $_action, $_data),
+            'msg' => array('dkim_domain_or_sel_exists', $domain)
+          );
+          return false;
+        }
       }
       if (!ctype_alnum($dkim_selector)) {
         $_SESSION['return'][] = array(
           'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => array('dkim_domain_or_sel_invalid', $domain)
         );
         return false;
       }
       try {
+        dkim('delete', $domain);
         $redis->hSet('DKIM_PUB_KEYS', $domain, $pem_public_key);
         $redis->hSet('DKIM_SELECTORS', $domain, $dkim_selector);
         $redis->hSet('DKIM_PRIV_KEYS', $dkim_selector . '.' . $domain, $private_key_normalized);
@@ -201,7 +205,7 @@ function dkim($_action, $_data = null, $privkey = false) {
       catch (RedisException $e) {
         $_SESSION['return'][] = array(
           'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => array('redis_error', $e)
         );
         return false;
@@ -214,14 +218,14 @@ function dkim($_action, $_data = null, $privkey = false) {
       catch (RedisException $e) {
         $_SESSION['return'][] = array(
           'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => array('redis_error', $e)
         );
         return false;
       }
       $_SESSION['return'][] = array(
         'type' => 'success',
-        'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+        'log' => array(__FUNCTION__, $_action, $_data),
         'msg' => array('dkim_added', $domain)
       );
       return true;
@@ -266,7 +270,7 @@ function dkim($_action, $_data = null, $privkey = false) {
       if ($_SESSION['mailcow_cc_role'] != "admin") {
         $_SESSION['return'][] = array(
           'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => 'access_denied'
         );
         return false;
@@ -282,7 +286,7 @@ function dkim($_action, $_data = null, $privkey = false) {
       if ($_SESSION['mailcow_cc_role'] != "admin") {
         $_SESSION['return'][] = array(
           'type' => 'danger',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => 'access_denied'
         );
         return false;
@@ -291,7 +295,7 @@ function dkim($_action, $_data = null, $privkey = false) {
         if (!is_valid_domain_name($domain)) {
           $_SESSION['return'][] = array(
             'type' => 'danger',
-            'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+            'log' => array(__FUNCTION__, $_action, $_data),
             'msg' => array('dkim_domain_or_sel_invalid', $domain)
           );
           continue;
@@ -305,14 +309,14 @@ function dkim($_action, $_data = null, $privkey = false) {
         catch (RedisException $e) {
           $_SESSION['return'][] = array(
             'type' => 'danger',
-            'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+            'log' => array(__FUNCTION__, $_action, $_data),
             'msg' => array('redis_error', $e)
           );
           continue;
         }
         $_SESSION['return'][] = array(
           'type' => 'success',
-          'log' => array(__FUNCTION__, $_action, $_data, $privkey),
+          'log' => array(__FUNCTION__, $_action, $_data),
           'msg' => array('dkim_removed', htmlspecialchars($domain))
         );
       }

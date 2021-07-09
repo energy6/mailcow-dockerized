@@ -25,6 +25,7 @@ RUN groupadd -g 102 postfix \
 	postfix \
 	postfix-mysql \
 	postfix-pcre \
+	redis-tools \
 	sasl2-bin \
 	sudo \
 	supervisor \

@@ -1,7 +1,3 @@
-table.footable>tbody>tr.footable-empty>td {
-  font-size:15px !important;
-  font-style:italic;
-}
 .pagination a {
   text-decoration: none !important;
 }
@@ -72,4 +68,20 @@ table tbody tr td input[type="checkbox"] {
 }
 #quarantine_template {
   margin:20px;
+}
+.regex-input {
+  font-family: Consolas,monaco,monospace;
+  font-size: 1rem;
+}
+.label-keys {
+  font-size:100%;
+  margin: 0px !important;
+  white-space: normal !important;
+}
+.key-action {
+  font-weight:bold;
+  color:white !important;
+}
+.dkim-label {
+  margin: 0 0 8px !important;
 }

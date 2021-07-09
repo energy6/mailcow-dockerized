@@ -106,11 +106,71 @@ docker_garbage() {
         echo "OK, skipped."
       fi
     else
-      echo "Skipped image removal because of force mode."
+      echo "Running image removal without extra confirmation due to force mode."
+      docker rmi ${IMGS_TO_DELETE[*]}
     fi
   fi
   echo -e "\e[32mFurther cleanup...\e[0m"
   echo "If you want to cleanup further garbage collected by Docker, please make sure all containers are up and running before cleaning your system by executing \"docker system prune\""
+}
+
+in_array() {
+  local e match="$1"
+  shift
+  for e; do [[ "$e" == "$match" ]] && return 0; done
+  return 1
+}
+
+migrate_docker_nat() {
+  NAT_CONFIG='{"ipv6":true,"fixed-cidr-v6":"fd00:dead:beef:c0::/80","experimental":true,"ip6tables":true}'
+  # Min Docker version
+  DOCKERV_REQ=20.10.2
+  # Current Docker version
+  DOCKERV_CUR=$(docker version -f '{{.Server.Version}}')
+  if grep -qi "ipv6nat-mailcow" docker-compose.yml; then
+    echo -e "\e[32mNative IPv6 implementation available.\e[0m"
+    echo "This will enable experimental features in the Docker daemon and configure Docker to do the IPv6 NATing instead of ipv6nat-mailcow. This step is recommended."
+    echo "mailcow will try to roll back the changes if starting Docker fails after modifying the daemon.json configuration file."
+    read -r -p "Should we try to enable the native IPv6 implementation in Docker now (recommended)? [y/N] " dockernatresponse
+    if [[ ! "${dockernatresponse}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+      echo "OK, skipping this step."
+      return 0
+    fi
+  fi
+  # Sort versions and check if we are running a newer or equal version to req
+  if [ $(printf "${DOCKERV_REQ}\n${DOCKERV_CUR}" | sort -V | tail -n1) == "${DOCKERV_CUR}" ]; then
+    # If Dockerd daemon json exists
+    if [ -s /etc/docker/daemon.json ]; then
+      IFS=',' read -r -a dockerconfig <<< $(cat /etc/docker/daemon.json | tr -cd '[:alnum:],')
+      if ! in_array ipv6true "${dockerconfig[@]}" || \
+        ! in_array experimentaltrue "${dockerconfig[@]}" || \
+        ! in_array ip6tablestrue "${dockerconfig[@]}" || \
+        ! grep -qi "fixed-cidr-v6" /etc/docker/daemon.json; then
+          echo -e "\e[33mWarning:\e[0m You seem to have modified the /etc/docker/daemon.json configuration by yourself and not fully/correctly activated the native IPv6 NAT implementation."
+          echo "You will need to merge your existing configuration manually or fix/delete the existing daemon.json configuration before trying the update process again."
+          echo -e "Please merge the following content and restart the Docker daemon:\n"
+          echo ${NAT_CONFIG}
+          return 1
+      fi
+    else
+      echo "Working on IPv6 NAT, please wait..."
+      echo ${NAT_CONFIG} > /etc/docker/daemon.json
+      ip6tables -F -t nat
+      if ! systemctl restart docker.service; then
+        echo -e "\e[31mError:\e[0m Failed to activate IPv6 NAT! Reverting and exiting."
+        rm /etc/docker/daemon.json
+        systemctl reset-failed docker.service
+        systemctl restart docker.service
+        return 1
+      fi
+    fi
+    # Removing legacy container
+    sed -i '/ipv6nat-mailcow:$/,/^$/d' docker-compose.yml
+    echo -e "\e[32mGreat! \e[0mNative IPv6 NAT is active.\e[0m"
+  else
+    echo -e "\e[31mPlease upgrade Docker to version ${DOCKERV_REQ} or above.\e[0m"
+    return 0
+  fi
 }
 
 while (($#)); do
@@ -123,7 +183,8 @@ while (($#)); do
         exit 99
       fi
       if [[ -z $(git log HEAD --pretty=format:"%H" | grep "${LATEST_REV}") ]]; then
-        echo "Updated code is available."
+        echo -e "Updated code is available.\nThe changes can be found here: https://github.com/mailcow/mailcow-dockerized/commits/master"
+        git log --date=short --pretty=format:"%ad - %s" $(git rev-parse --short HEAD)..origin/master
         exit 0
       else
         echo "No updates available."
@@ -154,7 +215,7 @@ while (($#)); do
       NO_UPDATE_COMPOSE=y
     ;;
     --help|-h)
-    echo './update.sh [-c|--check, --ours, --gc, --skip-start, -h|--help]
+    echo './update.sh [-c|--check, --ours, --gc, --no-update-compose, --prefetch, --skip-start, -f|--force, -h|--help]
 
   -c|--check           -   Check for updates and exit (exit codes => 0: update available, 3: no updates)
   --ours               -   Use merge strategy option "ours" to solve conflicts in favor of non-mailcow code (local changes over remote changes), not recommended!
@@ -179,8 +240,10 @@ if [ ${#DOTS} -lt 2 ]; then
   exit 1
 fi
 
-if grep --help 2>&1 | head -n 1 | grep -q -i "busybox"; then echo "BusybBox grep detected, please install gnu grep, \"apk add --no-cache --upgrade grep\""; exit 1; fi
-if cp --help 2>&1 | head -n 1 | grep -q -i "busybox"; then echo "BusybBox cp detected, please install coreutils, \"apk add --no-cache --upgrade coreutils\""; exit 1; fi
+if grep --help 2>&1 | head -n 1 | grep -q -i "busybox"; then echo "BusyBox grep detected, please install gnu grep, \"apk add --no-cache --upgrade grep\""; exit 1; fi
+# This will also cover sort
+if cp --help 2>&1 | head -n 1 | grep -q -i "busybox"; then echo "BusyBox cp detected, please install coreutils, \"apk add --no-cache --upgrade coreutils\""; exit 1; fi
+if sed --help 2>&1 | head -n 1 | grep -q -i "busybox"; then echo "BusyBox sed detected, please install gnu sed, \"apk add --no-cache --upgrade sed\""; exit 1; fi
 
 CONFIG_ARRAY=(
   "SKIP_LETS_ENCRYPT"
@@ -189,6 +252,7 @@ CONFIG_ARRAY=(
   "WATCHDOG_NOTIFY_EMAIL"
   "WATCHDOG_NOTIFY_BAN"
   "WATCHDOG_EXTERNAL_CHECKS"
+  "WATCHDOG_SUBJECT"
   "SKIP_CLAMD"
   "SKIP_IP_CHECK"
   "ADDITIONAL_SAN"
@@ -213,9 +277,14 @@ CONFIG_ARRAY=(
   "SKIP_HTTP_VERIFICATION"
   "SOGO_EXPIRE_SESSION"
   "REDIS_PORT"
+  "DOVECOT_MASTER_USER"
+  "DOVECOT_MASTER_PASS"
+  "MAILCOW_PASS_SCHEME"
+  "ADDITIONAL_SERVER_NAMES"
+  "ACME_CONTACT"
 )
 
-sed -i '$a\' mailcow.conf
+sed -i --follow-symlinks '$a\' mailcow.conf
 for option in ${CONFIG_ARRAY[@]}; do
   if [[ ${option} == "ADDITIONAL_SAN" ]]; then
     if ! grep -q ${option} mailcow.conf; then
@@ -317,7 +386,7 @@ for option in ${CONFIG_ARRAY[@]}; do
       echo '# Solr is a prone to run OOM on large systems and should be monitored. Unmonitored Solr setups are not recommended.' >> mailcow.conf
       echo '# Solr will refuse to start with total system memory below or equal to 2 GB.' >> mailcow.conf
       echo "SOLR_HEAP=1024" >> mailcow.conf
-  fi
+    fi
   elif [[ ${option} == "SKIP_SOLR" ]]; then
     if ! grep -q ${option} mailcow.conf; then
       echo "Adding new option \"${option}\" to mailcow.conf"
@@ -345,13 +414,19 @@ for option in ${CONFIG_ARRAY[@]}; do
       echo '# MAILDIR_SUB defines a path in a users virtual home to keep the maildir in. Leave empty for updated setups.' >> mailcow.conf
       echo "#MAILDIR_SUB=Maildir" >> mailcow.conf
       echo "MAILDIR_SUB=" >> mailcow.conf
-  fi
+    fi
   elif [[ ${option} == "WATCHDOG_NOTIFY_BAN" ]]; then
     if ! grep -q ${option} mailcow.conf; then
       echo "Adding new option \"${option}\" to mailcow.conf"
       echo '# Notify about banned IP. Includes whois lookup.' >> mailcow.conf
       echo "WATCHDOG_NOTIFY_BAN=y" >> mailcow.conf
-  fi
+    fi
+  elif [[ ${option} == "WATCHDOG_SUBJECT" ]]; then
+    if ! grep -q ${option} mailcow.conf; then
+      echo "Adding new option \"${option}\" to mailcow.conf"
+      echo '# Subject for watchdog mails. Defaults to "Watchdog ALERT" followed by the error message.' >> mailcow.conf
+      echo "#WATCHDOG_SUBJECT=" >> mailcow.conf
+    fi
   elif [[ ${option} == "WATCHDOG_EXTERNAL_CHECKS" ]]; then
     if ! grep -q ${option} mailcow.conf; then
       echo "Adding new option \"${option}\" to mailcow.conf"
@@ -359,17 +434,60 @@ for option in ${CONFIG_ARRAY[@]}; do
       echo '# No data is collected. Opt-in and anonymous.' >> mailcow.conf
       echo '# Will only work with unmodified mailcow setups.' >> mailcow.conf
       echo "WATCHDOG_EXTERNAL_CHECKS=n" >> mailcow.conf
-  fi
+    fi
   elif [[ ${option} == "SOGO_EXPIRE_SESSION" ]]; then
     if ! grep -q ${option} mailcow.conf; then
       echo "Adding new option \"${option}\" to mailcow.conf"
       echo '# SOGo session timeout in minutes' >> mailcow.conf
       echo "SOGO_EXPIRE_SESSION=480" >> mailcow.conf
-  fi
+    fi
   elif [[ ${option} == "REDIS_PORT" ]]; then
     if ! grep -q ${option} mailcow.conf; then
       echo "Adding new option \"${option}\" to mailcow.conf"
       echo "REDIS_PORT=127.0.0.1:7654" >> mailcow.conf
+    fi
+  elif [[ ${option} == "DOVECOT_MASTER_USER" ]]; then
+    if ! grep -q ${option} mailcow.conf; then
+      echo "Adding new option \"${option}\" to mailcow.conf"
+      echo '# DOVECOT_MASTER_USER and _PASS must _both_ be provided. No special chars.' >> mailcow.conf
+      echo '# Empty by default to auto-generate master user and password on start.' >> mailcow.conf
+      echo '# User expands to DOVECOT_MASTER_USER@mailcow.local' >> mailcow.conf
+      echo '# LEAVE EMPTY IF UNSURE' >> mailcow.conf
+      echo "DOVECOT_MASTER_USER=" >> mailcow.conf
+    fi
+  elif [[ ${option} == "DOVECOT_MASTER_PASS" ]]; then
+    if ! grep -q ${option} mailcow.conf; then
+      echo "Adding new option \"${option}\" to mailcow.conf"
+      echo '# LEAVE EMPTY IF UNSURE' >> mailcow.conf
+      echo "DOVECOT_MASTER_PASS=" >> mailcow.conf
+    fi
+  elif [[ ${option} == "MAILCOW_PASS_SCHEME" ]]; then
+    if ! grep -q ${option} mailcow.conf; then
+      echo "Adding new option \"${option}\" to mailcow.conf"
+      echo '# Password hash algorithm' >> mailcow.conf
+      echo '# Only certain password hash algorithm are supported. For a fully list of supported schemes,' >> mailcow.conf
+      echo '# see https://mailcow.github.io/mailcow-dockerized-docs/model-passwd/' >> mailcow.conf
+      echo "MAILCOW_PASS_SCHEME=BLF-CRYPT" >> mailcow.conf
+    fi
+  elif [[ ${option} == "ADDITIONAL_SERVER_NAMES" ]]; then
+    if ! grep -q ${option} mailcow.conf; then
+      echo '# Additional server names for mailcow UI' >> mailcow.conf
+      echo '#' >> mailcow.conf
+      echo '# Specify alternative addresses for the mailcow UI to respond to' >> mailcow.conf
+      echo '# This is useful when you set mail.* as ADDITIONAL_SAN and want to make sure mail.maildomain.com will always point to the mailcow UI.' >> mailcow.conf
+      echo '# If the server name does not match a known site, Nginx decides by best-guess and may redirect users to the wrong web root.' >> mailcow.conf
+      echo '# You can understand this as server_name directive in Nginx.' >> mailcow.conf
+      echo '# Comma separated list without spaces! Example: ADDITIONAL_SERVER_NAMES=a.b.c,d.e.f' >> mailcow.conf
+      echo 'ADDITIONAL_SERVER_NAMES=' >> mailcow.conf
+    fi
+  elif [[ ${option} == "ACME_CONTACT" ]]; then
+    if ! grep -q ${option} mailcow.conf; then
+      echo '# Lets Encrypt registration contact information' >> mailcow.conf
+      echo '# Optional: Leave empty for none' >> mailcow.conf
+      echo '# This value is only used on first order!' >> mailcow.conf
+      echo '# Setting it at a later point will require the following steps:' >> mailcow.conf
+      echo '# https://mailcow.github.io/mailcow-dockerized-docs/debug-reset-tls/' >> mailcow.conf
+      echo 'ACME_CONTACT=' >> mailcow.conf
   fi
   elif ! grep -q ${option} mailcow.conf; then
     echo "Adding new option \"${option}\" to mailcow.conf"
@@ -405,7 +523,7 @@ fi
 
 if [ ! $FORCE ]; then
   read -r -p "Are you sure you want to update mailcow: dockerized? All containers will be stopped. [y/N] " response
-  if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+  if [[ ! "${response}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
     echo "OK, exiting."
     exit 0
   fi
@@ -446,6 +564,8 @@ for container in "${MAILCOW_CONTAINERS[@]}"; do
   docker rm -f "$container" 2> /dev/null
 done
 
+[[ -f data/conf/nginx/ZZZ-ejabberd.conf ]] && rm data/conf/nginx/ZZZ-ejabberd.conf
+
 echo -e "\e[32mCommitting current status...\e[0m"
 [[ -z "$(git config user.name)" ]] && git config user.name moo
 [[ -z "$(git config user.email)" ]] && git config user.email moo@cow.moo
@@ -478,13 +598,26 @@ fi
 
 if [[ ${NO_UPDATE_COMPOSE} == "y" ]]; then
   echo -e "\e[33mNot fetching latest docker-compose, please check for updates manually!\e[0m"
+elif [[ -e /etc/alpine-release ]]; then
+  echo -e "\e[33mNot fetching latest docker-compose, because you are using Alpine Linux without glibc support. Please update docker-compose via apk!\e[0m"
 else
   echo -e "\e[32mFetching new docker-compose version...\e[0m"
+  echo -e "\e[32mTrying to determine GLIBC version...\e[0m"
+  if ldd --version > /dev/null; then
+    GLIBC_V=$(ldd --version | grep -E '(GLIBC|GNU libc)' | rev | cut -d ' ' -f1 | rev | cut -d '.' -f2)
+    if [ ! -z "${GLIBC_V}" ] && [ ${GLIBC_V} -gt 27 ]; then
+      DC_DL_SUFFIX=
+    else
+      DC_DL_SUFFIX=legacy
+    fi
+  else
+    DC_DL_SUFFIX=legacy
+  fi
   sleep 1
   if [[ ! -z $(which pip) && $(pip list --local 2>&1 | grep -v DEPRECATION | grep -c docker-compose) == 1 ]]; then
     true
     #prevent breaking a working docker-compose installed with pip
-  elif [[ $(curl -sL -w "%{http_code}" https://www.servercow.de/docker-compose/latest.php -o /dev/null) == "200" ]]; then
+  elif [[ $(curl -sL -w "%{http_code}" https://www.servercow.de/docker-compose/latest.php?vers=${DC_DL_SUFFIX} -o /dev/null) == "200" ]]; then
     LATEST_COMPOSE=$(curl -#L https://www.servercow.de/docker-compose/latest.php)
     COMPOSE_VERSION=$(docker-compose version --short)
     if [[ "$LATEST_COMPOSE" != "$COMPOSE_VERSION" ]]; then
@@ -523,7 +656,10 @@ if grep -q 'SYSCTL_IPV6_DISABLED=1' mailcow.conf; then
 fi
 
 # Checking for old project name bug
-sed -i 's#COMPOSEPROJECT_NAME#COMPOSE_PROJECT_NAME#g' mailcow.conf
+sed -i --follow-symlinks 's#COMPOSEPROJECT_NAME#COMPOSE_PROJECT_NAME#g' mailcow.conf
+# Checking old, wrong bindings
+sed -i --follow-symlinks 's/HTTP_BIND=0.0.0.0/HTTP_BIND=/g' mailcow.conf
+sed -i --follow-symlinks 's/HTTPS_BIND=0.0.0.0/HTTPS_BIND=/g' mailcow.conf
 
 # Fix Rspamd maps
 if [ -f data/conf/rspamd/custom/global_from_blacklist.map ]; then
