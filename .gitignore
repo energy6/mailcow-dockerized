@@ -60,3 +60,5 @@ mailcow.conf_backup
 rebuild-images.sh
 refresh_images.sh
 update_diffs/
+data/web/aircursion.de/
+!data/web/aircursion.de/publish.sh
