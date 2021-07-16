@@ -42,6 +42,7 @@ services:
 
     redis-mailcow:
       image: redis:5-alpine
+      command: redis-server --maxmemory 2048mb
       volumes:
         - redis-vol-1:/data/
       restart: always
@@ -465,7 +466,7 @@ services:
     dockerapi-mailcow:
       image: mailcow/dockerapi:1.37
       restart: always
-      oom_kill_disable: true
+      #oom_kill_disable: true
       dns:
         - ${IPV4_NETWORK:-172.22.1}.254
       environment:

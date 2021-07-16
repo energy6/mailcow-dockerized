@@ -53,3 +53,6 @@ update_diffs/
 .github/
 docker-compose.override.yml
 refresh_images.sh
+data/web/aircursion.de/
+!data/web/aircursion.de/publish.sh
+
