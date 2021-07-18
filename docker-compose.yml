@@ -47,7 +47,7 @@ services:
         - redis-vol-1:/data/:Z
       restart: always
       ports:
-        - "${REDIS_PORT:-127.0.0.1:7654}:7654"
+        - "${REDIS_PORT:-127.0.0.1:7654}:6379"
       environment:
         - TZ=${TZ}
       networks:
