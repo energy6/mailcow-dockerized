@@ -2,7 +2,7 @@ version: '2.1'
 services:
 
     unbound-mailcow:
-      image: mailcow/unbound:1.13
+      image: mailcow/unbound:1.14
       environment:
         - TZ=${TZ}
       volumes:
@@ -41,8 +41,7 @@ services:
             - mysql
 
     redis-mailcow:
-      image: redis:5-alpine
-      command: redis-server --maxmemory 2048mb
+      image: redis:6-alpine
       volumes:
         - redis-vol-1:/data/:Z
       restart: always
@@ -50,6 +49,8 @@ services:
         - "${REDIS_PORT:-127.0.0.1:7654}:6379"
       environment:
         - TZ=${TZ}
+      sysctls:
+        - net.core.somaxconn=4096
       networks:
         mailcow-network:
           ipv4_address: ${IPV4_NETWORK:-172.22.1}.249
@@ -57,7 +58,7 @@ services:
             - redis
 
     clamd-mailcow:
-      image: mailcow/clamd:1.40
+      image: mailcow/clamd:1.41
       restart: always
       dns:
         - ${IPV4_NETWORK:-172.22.1}.254
@@ -72,7 +73,7 @@ services:
             - clamd
 
     rspamd-mailcow:
-      image: mailcow/rspamd:1.77
+      image: mailcow/rspamd:1.79
       stop_grace_period: 30s
       depends_on:
         - dovecot-mailcow
@@ -102,7 +103,7 @@ services:
             - rspamd
 
     php-fpm-mailcow:
-      image: mailcow/phpfpm:1.75
+      image: mailcow/phpfpm:1.78
       command: "php-fpm -d date.timezone=${TZ} -d expose_php=0"
       depends_on:
         - redis-mailcow
@@ -155,6 +156,7 @@ services:
         - SKIP_SOGO=${SKIP_SOGO:-n}
         - ALLOW_ADMIN_EMAIL_LOGIN=${ALLOW_ADMIN_EMAIL_LOGIN:-n}
         - MASTER=${MASTER:-y}
+        - DEV_MODE=${DEV_MODE:-n}
       restart: always
       networks:
         mailcow-network:
@@ -162,7 +164,7 @@ services:
             - phpfpm
 
     sogo-mailcow:
-      image: mailcow/sogo:1.100
+      image: mailcow/sogo:1.102
       environment:
         - DBNAME=${DBNAME}
         - DBUSER=${DBUSER}
@@ -182,6 +184,7 @@ services:
       dns:
         - ${IPV4_NETWORK:-172.22.1}.254
       volumes:
+        - ./data/hooks/sogo:/hooks:Z
         - ./data/conf/sogo/:/etc/sogo/:z
         - ./data/web/inc/init_db.inc.php:/init_db.inc.php:Z
         - ./data/conf/sogo/custom-favicon.ico:/usr/lib/GNUstep/SOGo/WebServerResources/img/sogo.ico:z
@@ -208,7 +211,7 @@ services:
             - sogo
 
     dovecot-mailcow:
-      image: mailcow/dovecot:1.153
+      image: mailcow/dovecot:1.158
       depends_on:
         - mysql-mailcow
       dns:
@@ -240,7 +243,7 @@ services:
         - MAILCOW_PASS_SCHEME=${MAILCOW_PASS_SCHEME:-BLF-CRYPT}
         - IPV4_NETWORK=${IPV4_NETWORK:-172.22.1}
         - ALLOW_ADMIN_EMAIL_LOGIN=${ALLOW_ADMIN_EMAIL_LOGIN:-n}
-        - MAILDIR_GC_TIME=${MAILDIR_GC_TIME:-1440}
+        - MAILDIR_GC_TIME=${MAILDIR_GC_TIME:-7200}
         - ACL_ANYONE=${ACL_ANYONE:-disallow}
         - SKIP_SOLR=${SKIP_SOLR:-y}
         - MAILDIR_SUB=${MAILDIR_SUB:-}
@@ -288,7 +291,7 @@ services:
             - dovecot
 
     postfix-mailcow:
-      image: mailcow/postfix:1.65
+      image: mailcow/postfix:1.66
       depends_on:
         - mysql-mailcow
       volumes:
@@ -381,7 +384,7 @@ services:
     acme-mailcow:
       depends_on:
         - nginx-mailcow
-      image: mailcow/acme:1.79
+      image: mailcow/acme:1.80
       dns:
         - ${IPV4_NETWORK:-172.22.1}.254
       environment:
@@ -417,7 +420,8 @@ services:
             - acme
 
     netfilter-mailcow:
-      image: mailcow/netfilter:1.43
+      # image: mailcow/netfilter:1.45
+      build: data/Dockerfiles/netfilter/
       stop_grace_period: 30s
       depends_on:
         - dovecot-mailcow
@@ -440,9 +444,7 @@ services:
         - /lib/modules:/lib/modules:ro
 
     watchdog-mailcow:
-      image: mailcow/watchdog:1.92
-      # Debug
-      #command: /watchdog.sh
+      image: mailcow/watchdog:1.95
       dns:
         - ${IPV4_NETWORK:-172.22.1}.254
       tmpfs:
@@ -467,6 +469,7 @@ services:
         - WATCHDOG_SUBJECT=${WATCHDOG_SUBJECT:-Watchdog ALERT}
         - WATCHDOG_EXTERNAL_CHECKS=${WATCHDOG_EXTERNAL_CHECKS:-n}
         - WATCHDOG_MYSQL_REPLICATION_CHECKS=${WATCHDOG_MYSQL_REPLICATION_CHECKS:-n}
+        - WATCHDOG_VERBOSE=${WATCHDOG_VERBOSE:-n}
         - MAILCOW_HOSTNAME=${MAILCOW_HOSTNAME}
         - COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-mailcow-dockerized}
         - IPV4_NETWORK=${IPV4_NETWORK:-172.22.1}
@@ -503,7 +506,7 @@ services:
             - watchdog
 
     dockerapi-mailcow:
-      image: mailcow/dockerapi:1.38
+      image: mailcow/dockerapi:1.40
       security_opt:
         - label=disable
       restart: always
@@ -537,7 +540,7 @@ services:
             - solr
 
     olefy-mailcow:
-      image: mailcow/olefy:1.7
+      image: mailcow/olefy:1.8
       restart: always
       environment:
         - TZ=${TZ}
@@ -564,6 +567,8 @@ services:
         - dovecot-mailcow
       labels:
         ofelia.enabled: "true"
+      security_opt:
+        - label=disable
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock:ro
       networks:

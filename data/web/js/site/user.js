@@ -3,30 +3,32 @@ var Base64={_keyStr:"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456
 $(document).ready(function() {
   // Spam score slider
   var spam_slider = $('#spam_score')[0];
-  noUiSlider.create(spam_slider, {
-    start: user_spam_score,
-    connect: [true, true, true],
-    range: {
-      'min': [0], //stepsize is 50.000
-      '50%': [10],
-      '70%': [20, 5],
-      '80%': [50, 10],
-      '90%': [100, 100],
-      '95%': [1000, 1000],
-      'max': [5000]
-    },
-  });
-  var connect = spam_slider.querySelectorAll('.noUi-connect');
-  var classes = ['c-1-color', 'c-2-color', 'c-3-color'];
-  for (var i = 0; i < connect.length; i++) {
-    connect[i].classList.add(classes[i]);
+  if (typeof spam_slider !== 'undefined') {
+    noUiSlider.create(spam_slider, {
+      start: user_spam_score,
+      connect: [true, true, true],
+      range: {
+        'min': [0], //stepsize is 50.000
+        '50%': [10],
+        '70%': [20, 5],
+        '80%': [50, 10],
+        '90%': [100, 100],
+        '95%': [1000, 1000],
+        'max': [5000]
+      },
+    });
+    var connect = spam_slider.querySelectorAll('.noUi-connect');
+    var classes = ['c-1-color', 'c-2-color', 'c-3-color'];
+    for (var i = 0; i < connect.length; i++) {
+      connect[i].classList.add(classes[i]);
+    }
+    spam_slider.noUiSlider.on('update', function (values, handle) {
+      $('.spam-ham-score').text('< ' + Math.round(values[0] * 10) / 10);
+      $('.spam-spam-score').text(Math.round(values[0] * 10) / 10 + ' - ' + Math.round(values[1] * 10) / 10);
+      $('.spam-reject-score').text('> ' + Math.round(values[1] * 10) / 10);
+      $('#spam_score_value').val((Math.round(values[0] * 10) / 10) + ',' + (Math.round(values[1] * 10) / 10));
+    });
   }
-  spam_slider.noUiSlider.on('update', function (values, handle) {
-    $('.spam-ham-score').text('< ' + Math.round(values[0] * 10) / 10);
-    $('.spam-spam-score').text(Math.round(values[0] * 10) / 10 + ' - ' + Math.round(values[1] * 10) / 10);
-    $('.spam-reject-score').text('> ' + Math.round(values[1] * 10) / 10);
-    $('#spam_score_value').val((Math.round(values[0] * 10) / 10) + ',' + (Math.round(values[1] * 10) / 10));
-  });
   // syncjobLogModal
   $('#syncjobLogModal').on('show.bs.modal', function(e) {
     var syncjob_id = $(e.relatedTarget).data('syncjob-id');
@@ -77,7 +79,7 @@ jQuery(function($){
   $('.clear-last-logins').on('click', function () {if (confirm(lang.delete_ays)) {last_logins('reset');}})
   $(".login-history").on('click', function(e) {e.preventDefault(); last_logins('get', $(this).data('days'));$(this).addClass('active').siblings().removeClass('active');});
 
-  function last_logins(action, days = 1) {
+  function last_logins(action, days = 7) {
     if (action == 'get') {
       $('.last-login').html('<i class="bi bi-hourglass"></i>' +  lang.waiting);
       $.ajax({
@@ -99,10 +101,11 @@ jQuery(function($){
             $.each(data.sasl, function (i, item) {
               var datetime = new Date(item.datetime.replace(/-/g, "/"));
               var local_datetime = datetime.toLocaleDateString(undefined, {year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit"});
-              item.app_password ? app_password = ' <a href="/edit/app-passwd/' + item.app_password + '">(App)</a>' : app_password = "", item.location ? ip_location = ' <span class="flag-icon flag-icon-' + item.location.toLowerCase() + '"></span>' : ip_location = "";
-              "smtp" == item.service ? service = '<div class="label label-default">' + item.service.toUpperCase() + '<i class="bi bi-chevron-compact-right"></i></div>' : "imap" == item.service ? service = '<div class="label label-default"><i class="bi bi-chevron-compact-left"></i> ' + item.service.toUpperCase() + "</div>" : service = '<div class="label label-default">' + item.service.toUpperCase() + "</div>";
-              item.real_rip.startsWith("Web") ? real_rip = item.real_rip : real_rip = '<a href="https://bgp.he.net/ip/' + item.real_rip + '" target="_blank">' + item.real_rip + "</a>";
-              ip_data = real_rip + ip_location + app_password;
+              var service = '<div class="label label-default">' + item.service.toUpperCase() + '</div>';
+              var app_password = item.app_password ? ' <a href="/edit/app-passwd/' + item.app_password + '"><i class="bi bi-app-indicator"></i> ' + escapeHtml(item.app_password_name || "App") + '</a>' : '';
+              var real_rip = item.real_rip.startsWith("Web") ? item.real_rip : '<a href="https://bgp.he.net/ip/' + item.real_rip + '" target="_blank">' + item.real_rip + "</a>";
+              var ip_location = item.location ? ' <span class="flag-icon flag-icon-' + item.location.toLowerCase() + '"></span>' : '';
+              var ip_data = real_rip + ip_location + app_password;
               $(".last-login").append('<li class="list-group-item">' + local_datetime + " " + service + " " + lang.from + " " + ip_data + "</li>");
             })
             $('.last-login').append('</ul>');
@@ -131,7 +134,7 @@ jQuery(function($){
         {"name":"address","title":lang.alias},
         {"name":"validity","formatter":function unix_time_format(tm) { var date = new Date(tm ? tm * 1000 : 0); return date.toLocaleDateString(undefined, {year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit"});},"title":lang.alias_valid_until,"style":{"width":"170px"}},
         {"sorted": true,"sortValue": function(value){res = new Date(value);return res.getTime();},"direction":"DESC","name":"created","formatter":function date_format(datetime) { var date = new Date(datetime.replace(/-/g, "/")); return date.toLocaleDateString(undefined, {year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit"});},"title":lang.created_on,"style":{"width":"170px"}},
-        {"name":"action","filterable": false,"sortable": false,"style":{"text-align":"right","maxWidth":"180px","width":"180px"},"type":"html","title":lang.action,"breakpoints":"xs sm"}
+        {"name":"action","filterable": false,"sortable": false,"style":{"text-align":"right","min-width":"220px","width":"220px"},"type":"html","title":lang.action,"breakpoints":"xs sm"}
       ],
       "empty": lang.empty,
       "rows": $.ajax({
@@ -174,12 +177,13 @@ jQuery(function($){
       "columns": [
         {"name":"chkbox","title":"","style":{"min-width":"60px","width":"60px","text-align":"center"},"filterable": false,"sortable": false,"type":"html"},
         {"sorted": true,"name":"id","title":"ID","style":{"maxWidth":"60px","width":"60px","text-align":"center"}},
-        {"name":"server_w_port","title":"Server"},
+        {"name":"server_w_port","title":"Server","breakpoints":"xs sm md","style":{"word-break":"break-all"}},
         {"name":"enc1","title":lang.encryption,"breakpoints":"all"},
         {"name":"user1","title":lang.username},
         {"name":"exclude","title":lang.excludes,"breakpoints":"all"},
         {"name":"mins_interval","title":lang.interval + " (min)","breakpoints":"all"},
-        {"name":"last_run","title":lang.last_run,"breakpoints":"all"},
+        {"name":"last_run","title":lang.last_run,"breakpoints":"xs sm md"},
+        {"name":"exit_status","filterable": false,"title":lang.syncjob_last_run_result},
         {"name":"log","title":"Log"},
         {"name":"active","filterable": false,"style":{"maxWidth":"70px","width":"70px"},"title":lang.active,"formatter": function(value){return 1==value?'<i class="bi bi-check-lg"></i>':0==value&&'<i class="bi bi-x-lg"></i>';}},
         {"name":"is_running","filterable": false,"style":{"maxWidth":"120px","width":"100px"},"title":lang.status},
@@ -222,6 +226,18 @@ jQuery(function($){
             if (!item.last_run > 0) {
               item.last_run = lang.waiting;
             }
+            if (item.success == null) {
+              item.success = '-';
+              item.exit_status = '';
+            } else {
+              item.success = '<i class="text-' + (item.success == 1 ? 'success' : 'danger') + ' bi bi-' + (item.success == 1 ? 'check-lg' : 'x-lg') + '"></i>';
+            }
+            if (lang['syncjob_'+item.exit_status]) {
+	            item.exit_status = lang['syncjob_'+item.exit_status];
+            } else if (item.success != '-') {
+	            item.exit_status = lang.syncjob_check_log;
+            }
+            item.exit_status = item.success + ' ' + item.exit_status;
           });
         }
       }),
@@ -243,8 +259,9 @@ jQuery(function($){
         {"name":"chkbox","title":"","style":{"maxWidth":"60px","width":"60px","text-align":"center"},"filterable": false,"sortable": false,"type":"html"},
         {"sorted": true,"name":"id","title":"ID","style":{"maxWidth":"60px","width":"60px","text-align":"center"}},
         {"name":"name","title":lang.app_name},
+        {"name":"protocols","title":lang.allowed_protocols},
         {"name":"active","filterable": false,"style":{"maxWidth":"70px","width":"70px"},"title":lang.active,"formatter": function(value){return 1==value?'<i class="bi bi-check-lg"></i>':0==value&&'<i class="bi bi-x-lg"></i>';}},
-        {"name":"action","filterable": false,"sortable": false,"style":{"text-align":"right","maxWidth":"180px","width":"180px"},"type":"html","title":lang.action,"breakpoints":"xs sm"}
+        {"name":"action","filterable": false,"sortable": false,"style":{"text-align":"right","min-width":"220px","width":"220px"},"type":"html","title":lang.action,"breakpoints":"xs sm"}
       ],
       "empty": lang.empty,
       "rows": $.ajax({
@@ -256,7 +273,15 @@ jQuery(function($){
         },
         success: function (data) {
           $.each(data, function (i, item) {
-            item.name = escapeHtml(item.name);
+            item.name = escapeHtml(item.name)
+            item.protocols = []
+            if (item.imap_access == 1) { item.protocols.push("<code>IMAP</code>"); }
+            if (item.smtp_access == 1) { item.protocols.push("<code>SMTP</code>"); }
+            if (item.eas_access == 1) { item.protocols.push("<code>EAS/ActiveSync</code>"); }
+            if (item.dav_access == 1) { item.protocols.push("<code>DAV</code>"); }
+            if (item.pop3_access == 1) { item.protocols.push("<code>POP3</code>"); }
+            if (item.sieve_access == 1) { item.protocols.push("<code>Sieve</code>"); }
+            item.protocols = item.protocols.join(" ")
             if (acl_data.app_passwds === 1) {
               item.action = '<div class="btn-group footable-actions">' +
                 '<a href="/edit/app-passwd/' + item.id + '" class="btn btn-xs btn-xs-half btn-default"><i class="bi bi-pencil-fill"></i> ' + lang.edit + '</a>' +

@@ -485,7 +485,7 @@ if (isset($_GET['query'])) {
                 }
                 if (!empty($app_passwds)) {
                   foreach ($app_passwds as $app_passwd) {
-                    $details = app_passwd('details', array('id' => $app_passwd['id']));
+                    $details = app_passwd('details', $app_passwd['id']);
                     if ($details !== false) {
                       $data[] = $details;
                     }
@@ -945,6 +945,33 @@ if (isset($_GET['query'])) {
                 process_get_return($data);
               break;
             }
+          break;
+          case "bcc-destination-options":
+            $domains = mailbox('get', 'domains');
+            $alias_domains = mailbox('get', 'alias_domains');
+            $data = array();
+            if (!empty($domains)) {
+              foreach ($domains as $domain) {
+                $data['domains'][] = $domain;
+                $mailboxes = mailbox('get', 'mailboxes', $domain);
+                foreach ($mailboxes as $mailbox) {
+                  $data['mailboxes'][$mailbox][] = $mailbox;
+                  $user_alias_details = user_get_alias_details($mailbox);
+                  foreach ($user_alias_details['direct_aliases'] as $k => $v) {
+                    $data['mailboxes'][$mailbox][] = $k;
+                  }
+                  foreach ($user_alias_details['shared_aliases'] as $k => $v) {
+                    $data['mailboxes'][$mailbox][] = $k;
+                  }
+                }
+              }
+            }
+            if (!empty($alias_domains)) {
+              foreach ($alias_domains as $alias_domain) {
+                $data['alias_domains'][] = $alias_domain;
+              }
+            }
+            process_get_return($data);
           break;
           case "syncjobs":
             switch ($object) {

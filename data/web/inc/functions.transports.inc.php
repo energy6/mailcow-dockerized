@@ -1,7 +1,7 @@
 <?php
 function relayhost($_action, $_data = null) {
-	global $pdo;
-	global $lang;
+  global $pdo;
+  global $lang;
   $_data_log = $_data;
   switch ($_action) {
     case 'add':
@@ -45,7 +45,7 @@ function relayhost($_action, $_data = null) {
       $_SESSION['return'][] = array(
         'type' => 'success',
         'log' => array(__FUNCTION__, $_action, $_data_log),
-        'msg' => array('relayhost_added', htmlspecialchars(implode(', ', $hosts)))
+        'msg' => array('relayhost_added', htmlspecialchars(implode(', ', (array)$hosts)))
       );
     break;
     case 'edit':
@@ -100,7 +100,7 @@ function relayhost($_action, $_data = null) {
         $_SESSION['return'][] = array(
           'type' => 'success',
           'log' => array(__FUNCTION__, $_action, $_data_log),
-          'msg' => array('object_modified', htmlspecialchars(implode(', ', $hostnames)))
+          'msg' => array('object_modified', htmlspecialchars(implode(', ', (array)$hostnames)))
         );
       }
     break;
@@ -177,8 +177,8 @@ function relayhost($_action, $_data = null) {
   }
 }
 function transport($_action, $_data = null) {
-	global $pdo;
-	global $lang;
+  global $pdo;
+  global $lang;
   $_data_log = $_data;
   switch ($_action) {
     case 'add':
@@ -262,7 +262,7 @@ function transport($_action, $_data = null) {
       $destinations = array_filter(array_values(array_unique($destinations)));
       if (empty($destinations)) { return false; }
       if (isset($next_hop_matches[1])) {
-        if (in_array($next_hop_clean, $existing_nh)) {
+        if ($existing_nh !== null && in_array($next_hop_clean, $existing_nh)) {
           $_SESSION['return'][] = array(
             'type' => 'danger',
             'log' => array(__FUNCTION__, $_action, $_data_log),
@@ -307,7 +307,7 @@ function transport($_action, $_data = null) {
       $_SESSION['return'][] = array(
         'type' => 'success',
         'log' => array(__FUNCTION__, $_action, $_data_log),
-        'msg' => array('relayhost_added', htmlspecialchars(implode(', ', $hosts)))
+        'msg' => array('relayhost_added', htmlspecialchars(implode(', ', (array)$hosts)))
       );
     break;
     case 'edit':
@@ -379,7 +379,7 @@ function transport($_action, $_data = null) {
           return false;
         }
         if (isset($next_hop_matches[1])) {
-          if (in_array($next_hop_clean, $existing_nh)) {
+          if ($existing_nh !== null && in_array($next_hop_clean, $existing_nh)) {
             $_SESSION['return'][] = array(
               'type' => 'danger',
               'log' => array(__FUNCTION__, $_action, $_data_log),
@@ -442,7 +442,7 @@ function transport($_action, $_data = null) {
         $_SESSION['return'][] = array(
           'type' => 'success',
           'log' => array(__FUNCTION__, $_action, $_data_log),
-          'msg' => array('object_modified', htmlspecialchars(implode(', ', $hostnames)))
+          'msg' => array('object_modified', htmlspecialchars(implode(', ', (array)$hostnames)))
         );
       }
     break;
