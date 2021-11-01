@@ -67,3 +67,5 @@ update_diffs/
 create_cold_standby.sh
 data/web/aircursion.de/
 !data/web/aircursion.de/publish.sh
+!data/conf/nginx/aircursion.de.conf
+!data/conf/nginx/familie-antoni.de.conf
