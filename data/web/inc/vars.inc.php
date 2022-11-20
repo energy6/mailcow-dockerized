@@ -76,31 +76,35 @@ $autodiscover_config = array(
 $DETECT_LANGUAGE = true;
 
 // Change default language
-$DEFAULT_LANG = 'en';
+$DEFAULT_LANG = 'en-gb';
 
 // Available languages
 // https://www.iso.org/obp/ui/#search
-// https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes
+// https://en.wikipedia.org/wiki/IETF_language_tag
 $AVAILABLE_LANGUAGES = array(
-  'cs' => 'Čeština (Czech)',
-  'da' => 'Danish (Dansk)',
-  'de' => 'Deutsch (German)',
-  'en' => 'English',
-  'es' => 'Español (Spanish)',
-  'fi' => 'Suomi (Finish)',
-  'fr' => 'Français (French)',
-  'hu' => 'Magyar (Hungarian)',
-  'it' => 'Italiano (Italian)',
-  'ko' => '한국어 (Korean)',
-  'lv' => 'latviešu (Latvian)',
-  'nl' => 'Nederlands (Dutch)',
-  'pl' => 'Język Polski (Polish)',
-  'pt' => 'Português (Portuguese)',
-  'ro' => 'Română (Romanian)',
-  'ru' => 'Pусский (Russian)',
-  'sk' => 'Slovenčina (Slovak)',
-  'sv' => 'Svenska (Swedish)',
-  'zh' => '中文 (Chinese)'
+  // 'ca-es' => 'Català (Catalan)',
+  'cs-cz' => 'Čeština (Czech)',
+  'da-dk' => 'Danish (Dansk)',
+  'de-de' => 'Deutsch (German)',
+  'en-gb' => 'English',
+  'es-es' => 'Español (Spanish)',
+  'fi-fi' => 'Suomi (Finish)',
+  'fr-fr' => 'Français (French)',
+  'hu-hu' => 'Magyar (Hungarian)',
+  'it-it' => 'Italiano (Italian)',
+  'ko-kr' => '한국어 (Korean)',
+  'lv-lv' => 'latviešu (Latvian)',
+  'nl-nl' => 'Nederlands (Dutch)',
+  'pl-pl' => 'Język Polski (Polish)',
+  'pt-pt' => 'Português (Portuguese)',
+  'ro-ro' => 'Română (Romanian)',
+  'ru-ru' => 'Pусский (Russian)',
+  'sk-sk' => 'Slovenčina (Slovak)',
+  'sv-se' => 'Svenska (Swedish)',
+  'tr-tr' => 'Türkçe (Turkish)',
+  'uk-ua' => 'Українська (Ukrainian)',
+  'zh-cn' => '简体中文 (Simplified Chinese)',
+  'zh-tw' => '繁體中文 (Traditional Chinese)',
 );
 
 // Change theme (default: lumen)
@@ -148,6 +152,9 @@ $ACCESS_TOKEN_LIFETIME = 86400;
 // Logout from mailcow after first OAuth2 session profile request
 $OAUTH2_FORGET_SESSION_AFTER_LOGIN = false;
 
+// Set a limit for mailbox and domain tagging
+$TAGGING_LIMIT = 25;
+
 // MAILBOX_DEFAULT_ATTRIBUTES define default attributes for new mailboxes
 // These settings will not change existing mailboxes
 
@@ -175,6 +182,9 @@ $MAILBOX_DEFAULT_ATTRIBUTES['pop3_access'] = true;
 // Mailbox has SMTP access by default
 $MAILBOX_DEFAULT_ATTRIBUTES['smtp_access'] = true;
 
+// Mailbox has sieve access by default
+$MAILBOX_DEFAULT_ATTRIBUTES['sieve_access'] = true;
+
 // Mailbox receives notifications about...
 // "add_header" - mail that was put into the Junk folder
 // "reject" - mail that was rejected
@@ -192,10 +202,16 @@ $SHOW_LAST_LOGIN = true;
 // true = required
 // false = preferred
 // string 'required' 'preferred' 'discouraged'
+$WEBAUTHN_UV_FLAG_REGISTER = false;
+$WEBAUTHN_UV_FLAG_LOGIN = false;
+$WEBAUTHN_USER_PRESENT_FLAG = true;
+
 $FIDO2_UV_FLAG_REGISTER = 'preferred';
 $FIDO2_UV_FLAG_LOGIN = 'preferred'; // iOS ignores the key via NFC if required - known issue
 $FIDO2_USER_PRESENT_FLAG = true;
+
 $FIDO2_FORMATS = array('apple', 'android-key', 'android-safetynet', 'fido-u2f', 'none', 'packed', 'tpm');
+
 
 // Set visible Rspamd maps in mailcow UI, do not change unless you know what you are doing
 $RSPAMD_MAPS = array(
@@ -213,5 +229,133 @@ $RSPAMD_MAPS = array(
     'Bulk Mail Headers' => 'bulk_header.map',
     'Bad (Junk) Mail Headers' => 'bad_header.map',
     'Monitoring Hosts' => 'monitoring_nolog.map'
+  )
+);
+
+
+$IMAPSYNC_OPTIONS = array(
+  'whitelist' => array(
+    'authmech1',
+    'authmech2',
+    'authuser1', 
+    'authuser2', 
+    'debugcontent', 
+    'disarmreadreceipts', 
+    'logdir',
+    'debugcrossduplicates', 
+    'maxsize',
+    'minsize',
+    'minage',
+    'search', 
+    'noabletosearch', 
+    'pidfile', 
+    'pidfilelocking', 
+    'search1',
+    'search2', 
+    'sslargs1',
+    'sslargs2', 
+    'syncduplicates',
+    'usecache', 
+    'synclabels', 
+    'truncmess',  
+    'domino2',  
+    'expunge1',  
+    'filterbuggyflags',  
+    'justconnect',  
+    'justfolders',  
+    'maxlinelength',
+    'useheader',  
+    'noabletosearch1',  
+    'nolog',  
+    'prefix1',
+    'prefix2',
+    'sep1',
+    'sep2',
+    'nofoldersizesatend',
+    'justfoldersizes',  
+    'proxyauth1',  
+    'skipemptyfolders',
+    'include',
+    'subfolder1',
+    'subscribed',
+    'subscribe',   
+    'debug',   
+    'debugimap2',   
+    'domino1',   
+    'exchange1',   
+    'exchange2',   
+    'justlogin',   
+    'keepalive1',   
+    'keepalive2',   
+    'noabletosearch2',   
+    'noexpunge2',   
+    'noresyncflags',   
+    'nossl1',   
+    'nouidexpunge2',   
+    'syncinternaldates',
+    'idatefromheader',   
+    'useuid',    
+    'debugflags',    
+    'debugimap',    
+    'delete1emptyfolders',
+    'delete2folders',    
+    'gmail2',    
+    'office1',    
+    'testslive6',     
+    'debugimap1',     
+    'errorsmax',
+    'tests',     
+    'gmail1',     
+    'maxmessagespersecond',
+    'maxbytesafter',
+    'maxsleep',
+    'abort',     
+    'resyncflags',     
+    'resynclabels',     
+    'syncacls',
+    'nosyncacls',      
+    'nousecache',      
+    'office2',      
+    'testslive',       
+    'debugmemory',       
+    'exitwhenover',
+    'noid',       
+    'noexpunge1',        
+    'authmd51',        
+    'logfile',        
+    'proxyauth2',         
+    'domain1',
+    'domain2',
+    'oauthaccesstoken1',
+    'oauthaccesstoken2',
+    'oauthdirect1',
+    'oauthdirect2',
+    'folder',
+    'folderrec',
+    'folderfirst',
+    'folderlast',
+    'nomixfolders',          
+    'authmd52',           
+    'debugfolders',            
+    'nossl2',            
+    'ssl2',            
+    'tls2',             
+    'notls2',              
+    'debugssl',              
+    'notls1', 
+    'inet4',
+    'inet6',
+    'log',
+    'showpasswords'
+  ),
+  'blacklist' => array(
+    'skipmess',
+    'delete2foldersonly',
+    'delete2foldersbutnot',
+    'regexflag',
+    'regexmess',
+    'pipemess',
+    'regextrans2',
+    'maxlinelengthcmd'
   )
 );

@@ -62,11 +62,21 @@ elseif (isset($_SESSION['mailcow_cc_role']) && $_SESSION['mailcow_cc_role'] == '
   }
 
   $template = 'user.twig';
+  $number_of_app_passwords = 0;
+  foreach (app_passwd("get") as $app_password)
+  {
+      $app_password = app_passwd("details", $app_password['id']);
+      if ($app_password['active'])
+      {
+          ++$number_of_app_passwords;
+      }
+  }
   $template_data = [
     'acl' => $_SESSION['acl'],
     'acl_json' => json_encode($_SESSION['acl']),
     'user_spam_score' => mailbox('get', 'spam_score', $username),
     'tfa_data' => $tfa_data,
+    'tfa_id' => @$_SESSION['tfa_id'],
     'fido2_data' => $fido2_data,
     'mailboxdata' => $mailboxdata,
     'clientconfigstr' => $clientconfigstr,
@@ -78,10 +88,10 @@ elseif (isset($_SESSION['mailcow_cc_role']) && $_SESSION['mailcow_cc_role'] == '
     'user_domains' => $user_domains,
     'pushover_data' => $pushover_data,
     'lang_user' => json_encode($lang['user']),
+    'number_of_app_passwords' => $number_of_app_passwords,
   ];
 }
-
-if (!isset($_SESSION['mailcow_cc_role']) && $_SESSION['mailcow_cc_role'] == 'admin') {
+else {
   header('Location: /');
   exit();
 }

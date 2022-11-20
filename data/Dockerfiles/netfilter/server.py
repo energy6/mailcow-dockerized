@@ -94,7 +94,7 @@ def refreshF2bregex():
     f2bregex = {}
     f2bregex[1] = 'mailcow UI: Invalid password for .+ by ([0-9a-f\.:]+)'
     f2bregex[2] = 'Rspamd UI: Invalid password by ([0-9a-f\.:]+)'
-    f2bregex[3] = 'warning: .*\[([0-9a-f\.:]+)\]: SASL .+ authentication failed'
+    f2bregex[3] = 'warning: .*\[([0-9a-f\.:]+)\]: SASL .+ authentication failed: (?!.*Connection lost to authentication server).+'
     f2bregex[4] = 'warning: non-SMTP command from .*\[([0-9a-f\.:]+)]:.+'
     f2bregex[5] = 'NOQUEUE: reject: RCPT from \[([0-9a-f\.:]+)].+Protocol error.+'
     f2bregex[6] = '-login: Disconnected \(auth failed, .+\): user=.*, method=.+, rip=([0-9a-f\.:]+),'
@@ -348,6 +348,8 @@ def snat4(snat_target):
     rule.dst = '!' + rule.src
     target = rule.create_target("SNAT")
     target.to_source = snat_target
+    match = rule.create_match("comment")
+    match.comment = f'{int(round(time.time()))}'
     return rule
 
   while not quit_now:
@@ -358,16 +360,23 @@ def snat4(snat_target):
         table.refresh()
         chain = iptc.Chain(table, 'POSTROUTING')
         table.autocommit = False
-        if get_snat4_rule() not in chain.rules:
-          logCrit('Added POSTROUTING rule for source network %s to SNAT target %s' % (get_snat4_rule().src, snat_target))
-          chain.insert_rule(get_snat4_rule())
-          table.commit()
-        else:
-          for position, item in enumerate(chain.rules):
-            if item == get_snat4_rule():
-              if position != 0:
-                chain.delete_rule(get_snat4_rule())
-          table.commit()
+        new_rule = get_snat4_rule()
+        for position, rule in enumerate(chain.rules):
+          match = all((
+            new_rule.get_src() == rule.get_src(),
+            new_rule.get_dst() == rule.get_dst(),
+            new_rule.target.parameters == rule.target.parameters,
+            new_rule.target.name == rule.target.name
+          ))
+          if position == 0:
+            if not match:
+              logInfo(f'Added POSTROUTING rule for source network {new_rule.src} to SNAT target {snat_target}')
+              chain.insert_rule(new_rule)
+          else:
+            if match:
+              logInfo(f'Remove rule for source network {new_rule.src} to SNAT target {snat_target} from POSTROUTING chain at position {position}')
+              chain.delete_rule(rule)
+        table.commit()
         table.autocommit = True
       except:
         print('Error running SNAT4, retrying...')
