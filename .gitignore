@@ -5,6 +5,7 @@
 *.iml
 .idea
 .vscode/*
+.DS_Store
 data/assets/ssl-example/*
 data/assets/ssl/*
 data/conf/borgmatic/
@@ -75,3 +76,4 @@ data/web/aircursion.de/
 !data/web/aircursion.de/publish.sh
 !data/conf/nginx/aircursion.de.conf
 !data/conf/nginx/familie-antoni.de.conf
+!data/conf/nginx/digikladde.aircursion.de.conf
