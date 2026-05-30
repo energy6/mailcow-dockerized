@@ -1,4 +1,18 @@
 services:
+    digikladde-relay:
+      image: ghcr.io/energy6/digikladde-relay:relay-mode
+      environment:
+        - TZ=${TZ}
+        - RELAY_HOST=0.0.0.0
+        - RELAY_PORT=8080
+        - RELAY_WS_PATH=/relay
+      restart: always
+      expose:
+        - "8080"
+      networks:
+        mailcow-network:
+          aliases:
+            - digikladde-relay
 
     unbound-mailcow:
       image: mailcow/unbound:1.23
