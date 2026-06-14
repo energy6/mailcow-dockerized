@@ -6,6 +6,9 @@ services:
         - RELAY_HOST=0.0.0.0
         - RELAY_PORT=8080
         - RELAY_WS_PATH=/relay
+        - RELAY_WEB_PUSH_PUBLIC_KEY=${RELAY_WEB_PUSH_PUBLIC_KEY:-}
+        - RELAY_WEB_PUSH_PRIVATE_KEY=${RELAY_WEB_PUSH_PRIVATE_KEY:-}
+        - RELAY_WEB_PUSH_SUBJECT=${RELAY_WEB_PUSH_SUBJECT:-}
       restart: always
       expose:
         - "8080"
