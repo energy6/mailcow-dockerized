@@ -1,6 +1,6 @@
 services:
     digikladde-relay:
-      image: ghcr.io/energy6/digikladde-relay:relay-mode
+      image: ghcr.io/energy6/digikladde-relay:latest
       environment:
         - TZ=${TZ}
         - RELAY_HOST=0.0.0.0
