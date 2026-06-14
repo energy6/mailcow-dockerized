@@ -269,6 +269,24 @@ $(document).ready(function() {
   function setMailboxTemplateData(template){
     $("#addInputQuota").val(template.quota / 1048576);
 
+    if (template.tagged_mail_handler === "subfolder"){
+      $('#tagged_mail_handler_subfolder').prop('checked', true);
+      $('#tagged_mail_handler_subject').prop('checked', false);
+      $('#tagged_mail_handler_none').prop('checked', false);
+    } else if(template.tagged_mail_handler === "subject"){
+      $('#tagged_mail_handler_subfolder').prop('checked', false);
+      $('#tagged_mail_handler_subject').prop('checked', true);
+      $('#tagged_mail_handler_none').prop('checked', false);
+    } else if(template.tagged_mail_handler === "none"){
+      $('#tagged_mail_handler_subfolder').prop('checked', false);
+      $('#tagged_mail_handler_subject').prop('checked', false);
+      $('#tagged_mail_handler_none').prop('checked', true);
+    } else {
+      $('#tagged_mail_handler_subfolder').prop('checked', false);
+      $('#tagged_mail_handler_subject').prop('checked', false);
+      $('#tagged_mail_handler_none').prop('checked', true);
+    }
+
     if (template.quarantine_notification === "never"){
       $('#quarantine_notification_never').prop('checked', true);
       $('#quarantine_notification_hourly').prop('checked', false);
@@ -334,6 +352,12 @@ $(document).ready(function() {
     if (template.sieve_access == 1){
       protocol_access.push("sieve");
     }
+    if (template.eas_access == 1){
+      protocol_access.push("eas");
+    }
+    if (template.dav_access == 1){
+      protocol_access.push("dav");
+    }
     $('#protocol_access').selectpicker('val', protocol_access);
 
     var acl = [];
@@ -389,7 +413,6 @@ $(document).ready(function() {
       $('#rl_frame').selectpicker('val', template.rl_frame);
     }
 
-    console.log(template.active)
     if (template.active){
       $('#mbox_active').selectpicker('val', template.active.toString());
     } else {
@@ -448,8 +471,13 @@ jQuery(function($){
         hideTableExpandCollapseBtn('#tab-domains', '#domain_table');
       },
       ajax: {
-        type: "GET",
-        url: "/api/v1/get/domain/datatables",
+        type: "POST",
+        url: "/api/v1/search/domain",
+        contentType: "application/json",
+        processData: false,
+        data: function(d) {
+          return JSON.stringify(d);
+        },
         dataSrc: function(json){
           $.each(json.data, function(i, item) {
             item.domain_name = escapeHtml(item.domain_name);
@@ -875,8 +903,13 @@ jQuery(function($){
         hideTableExpandCollapseBtn('#tab-mailboxes', '#mailbox_table');
       },
       ajax: {
-        type: "GET",
-        url: "/api/v1/get/mailbox/datatables",
+        type: "POST",
+        url: "/api/v1/search/mailbox",
+        contentType: "application/json",
+        processData: false,
+        data: function(d) {
+          return JSON.stringify(d);
+        },
         dataSrc: function(json){
           $.each(json.data, function (i, item) {
             item.quota = {
@@ -916,6 +949,8 @@ jQuery(function($){
             item.imap_access = '<i class="text-' + (item.attributes.imap_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.imap_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
             item.smtp_access = '<i class="text-' + (item.attributes.smtp_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.smtp_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
             item.sieve_access = '<i class="text-' + (item.attributes.sieve_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.sieve_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
+            item.eas_access = '<i class="text-' + (item.attributes.eas_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.eas_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
+            item.dav_access = '<i class="text-' + (item.attributes.dav_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.dav_access == 1 ? 'check-lg' : 'x-lg') + '"></i>';
             if (item.attributes.quarantine_notification === 'never') {
               item.quarantine_notification = lang.never;
             } else if (item.attributes.quarantine_notification === 'hourly') {
@@ -939,7 +974,7 @@ jQuery(function($){
               '<a href="#" data-action="delete_selected" data-id="single-mailbox" data-api-url="delete/mailbox" data-item="' + encodeURIComponent(item.username) + '" class="btn btn-sm btn-xs-lg btn-xs-half btn-danger"><i class="bi bi-trash"></i> ' + lang.remove + '</a>' +
               '<a href="/index.php?duallogin=' + encodeURIComponent(item.username) + '" class="login_as btn btn-sm btn-xs-lg btn-xs-half btn-success"><i class="bi bi-person-fill"></i> Login</a>';
               if (ALLOW_ADMIN_EMAIL_LOGIN) {
-                item.action += '<a href="/sogo-auth.php?login=' + encodeURIComponent(item.username) + '" class="login_as btn btn-sm btn-xs-lg btn-xs-half btn-primary" target="_blank"><i class="bi bi-envelope-fill"></i> SOGo</a>';
+                item.action += '<a href="/sogo-auth.php?login=' + encodeURIComponent(item.username) + '" class="login_as btn btn-sm btn-xs-lg btn-xs-half btn-primary"><i class="bi bi-envelope-fill"></i> SOGo</a>';
               }
               item.action += '</div>';
             }
@@ -1032,7 +1067,16 @@ jQuery(function($){
           title: lang.domain,
           data: 'domain',
           defaultContent: '',
-          className: 'none'
+          className: 'none',
+        },
+        {
+          title: lang.iam,
+          data: 'authsource',
+          defaultContent: '',
+          className: 'none',
+          render: function (data, type) {
+            return '<span class="badge bg-primary">' + data + '<i class="ms-2 bi bi-person-circle"></i></i></span>';
+          }
         },
         {
           title: lang.tls_enforce_in,
@@ -1067,6 +1111,18 @@ jQuery(function($){
         {
           title: 'SIEVE',
           data: 'sieve_access',
+          defaultContent: '',
+          className: 'none'
+        },
+        {
+          title: 'EAS',
+          data: 'eas_access',
+          defaultContent: '',
+          className: 'none'
+        },
+        {
+          title: 'DAV',
+          data: 'dav_access',
           defaultContent: '',
           className: 'none'
         },
@@ -1183,6 +1239,8 @@ jQuery(function($){
             item.attributes.imap_access = '<i class="text-' + (item.attributes.imap_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.imap_access == 1 ? 'check-lg' : 'x-lg') + '"><span class="sorting-value">' + (item.attributes.imap_access == 1 ? '1' : '0') + '</span></i>';
             item.attributes.smtp_access = '<i class="text-' + (item.attributes.smtp_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.smtp_access == 1 ? 'check-lg' : 'x-lg') + '"><span class="sorting-value">' + (item.attributes.smtp_access == 1 ? '1' : '0') + '</span></i>';
             item.attributes.sieve_access = '<i class="text-' + (item.attributes.sieve_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.sieve_access == 1 ? 'check-lg' : 'x-lg') + '"><span class="sorting-value">' + (item.attributes.sieve_access == 1 ? '1' : '0') + '</span></i>';
+            item.attributes.eas_access = '<i class="text-' + (item.attributes.eas_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.eas_access == 1 ? 'check-lg' : 'x-lg') + '"><span class="sorting-value">' + (item.attributes.eas_access == 1 ? '1' : '0') + '</span></i>';
+            item.attributes.dav_access = '<i class="text-' + (item.attributes.dav_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.dav_access == 1 ? 'check-lg' : 'x-lg') + '"><span class="sorting-value">' + (item.attributes.dav_access == 1 ? '1' : '0') + '</span></i>';
             item.attributes.sogo_access = '<i class="text-' + (item.attributes.sogo_access == 1 ? 'success' : 'danger') + ' bi bi-' + (item.attributes.sogo_access == 1 ? 'check-lg' : 'x-lg') + '"><span class="sorting-value">' + (item.attributes.sogo_access == 1 ? '1' : '0') + '</span></i>';
             if (item.attributes.quarantine_notification === 'never') {
               item.attributes.quarantine_notification = lang.never;
@@ -1289,6 +1347,16 @@ jQuery(function($){
         {
           title: 'SIEVE',
           data: 'attributes.sieve_access',
+          defaultContent: '',
+        },
+        {
+          title: 'EAS',
+          data: 'attributes.eas_access',
+          defaultContent: '',
+        },
+        {
+          title: 'DAV',
+          data: 'attributes.dav_access',
           defaultContent: '',
         },
         {
@@ -1924,11 +1992,6 @@ jQuery(function($){
           responsivePriority: 5,
         },
         {
-          title: lang.bcc_destinations,
-          data: 'bcc_dest',
-          defaultContent: ''
-        },
-        {
           title: lang.sogo_visible,
           data: 'sogo_visible',
           defaultContent: '',
@@ -1945,6 +2008,15 @@ jQuery(function($){
           title: lang.private_comment,
           data: 'private_comment',
           defaultContent: ''
+        },
+        {
+          title: lang.internal,
+          data: 'internal',
+          defaultContent: '',
+          responsivePriority: 6,
+          render: function (data, type) {
+            return 1==data?'<i class="bi bi-check-lg"><span class="sorting-value">1</span></i>':0==data&&'<i class="bi bi-x-lg"><span class="sorting-value">0</span></i>';
+          }
         },
         {
           title: lang.active,

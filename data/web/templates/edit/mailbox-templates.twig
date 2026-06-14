@@ -37,6 +37,23 @@
       </div>
     </div>
     <div class="row mb-2">
+      <label class="control-label col-sm-2">{{ lang.user.tag_handling }}</label>
+      <div class="col-sm-10">
+        <div class="btn-group">
+          <input type="radio" class="btn-check" name="tagged_mail_handler" id="tagged_mail_handler_subfolder" autocomplete="off" value="subfolder" {% if template.attributes.tagged_mail_handler == 'subfolder' %}checked{% endif %}>
+          <label class="btn btn-sm btn-xs-quart d-block d-sm-inline btn-light" for="tagged_mail_handler_subfolder">{{ lang.user.tag_in_subfolder }}</label>
+
+          <input type="radio" class="btn-check" name="tagged_mail_handler" id="tagged_mail_handler_subject" autocomplete="off" value="subject" {% if template.attributes.tagged_mail_handler == 'subject' %}checked{% endif %}>
+          <label class="btn btn-sm btn-xs-quart d-block d-sm-inline btn-light" for="tagged_mail_handler_subject">{{ lang.user.tag_in_subject }}</label>
+
+          <input type="radio" class="btn-check" name="tagged_mail_handler" id="tagged_mail_handler_none" autocomplete="off" value="none" {% if template.attributes.tagged_mail_handler == 'none' %}checked{% endif %}>
+          <label class="btn btn-sm btn-xs-quart d-block d-sm-inline btn-light" for="tagged_mail_handler_none">{{ lang.user.tag_in_none }}</label>
+        </div>
+        <p class="text-muted"><small>{{ lang.user.tag_help_explain|raw }}</small></p>
+        <p class="text-muted"><small>{{ lang.user.tag_help_example|raw }}</small></p>
+      </div>
+    </div>
+    <div class="row mb-2">
       <label class="control-label col-sm-2">{{ lang.user.quarantine_notification }}</label>
       <div class="col-sm-10">
         <div class="btn-group">
@@ -91,6 +108,8 @@
           <option value="pop3"{% if template.attributes.pop3_access == '1' %} selected{% endif %}>POP3</option>
           <option value="smtp"{% if template.attributes.smtp_access == '1' %} selected{% endif %}>SMTP</option>
           <option value="sieve"{% if template.attributes.sieve_access == '1' %} selected{% endif %}>Sieve</option>
+          <option value="eas"{% if template.attributes.eas_access == '1' %} selected{% endif %}>ActiveSync</option>
+          <option value="dav"{% if template.attributes.dav_access == '1' %} selected{% endif %}>CalDAV/CardDAV</option>
         </select>
       </div>
     </div>

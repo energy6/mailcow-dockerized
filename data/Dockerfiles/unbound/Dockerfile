@@ -1,12 +1,15 @@
-FROM alpine:3.20
+FROM alpine:3.23
 
 LABEL maintainer = "The Infrastructure Company GmbH <info@servercow.de>"
 
+# install unbound from alpine:edge to get security patches
+RUN apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main unbound
+
+# install other packages from regular alpine stable repo
 RUN apk add --update --no-cache \
 	curl \
 	bind-tools \
 	coreutils \
-	unbound \
 	bash \
 	openssl \
 	drill \

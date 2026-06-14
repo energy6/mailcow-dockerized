@@ -14,6 +14,17 @@ until [[ $(${REDIS_CMDLINE} PING) == "PONG" ]]; do
   sleep 2
 done
 
+# Create DNS-01 configuration template if it doesn't exist
+if [[ ! -f /etc/acme/dns-01.conf ]]; then
+  mkdir -p /etc/acme
+  cat > /etc/acme/dns-01.conf <<'EOF'
+# Add here your DNS-01 challenge configuration
+# For more information, visit the acme.sh documentation:
+# https://github.com/acmesh-official/acme.sh/wiki/dnsapi
+EOF
+  echo "Created DNS-01 configuration template at /etc/acme/dns-01.conf"
+fi
+
 source /srv/functions.sh
 # Thanks to https://github.com/cvmiller -> https://github.com/cvmiller/expand6
 source /srv/expand6.sh
@@ -40,6 +51,10 @@ fi
 # Request individual certificate for every domain
 if [[ "${ENABLE_SSL_SNI}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
   ENABLE_SSL_SNI=y
+fi
+
+if [[ "${ACME_DNS_CHALLENGE}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+  ACME_DNS_CHALLENGE=y
 fi
 
 if [[ "${SKIP_LETS_ENCRYPT}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
@@ -138,7 +153,7 @@ log_f "Resolver OK"
 log_f "Waiting for domain table..."
 while [[ -z ${DOMAIN_TABLE} ]]; do
   curl --silent http://nginx.${COMPOSE_PROJECT_NAME}_mailcow-network/ >/dev/null 2>&1
-  DOMAIN_TABLE=$(mysql --socket=/var/run/mysqld/mysqld.sock -u ${DBUSER} -p${DBPASS} ${DBNAME} -e "SHOW TABLES LIKE 'domain'" -Bs)
+  DOMAIN_TABLE=$(mariadb --skip-ssl --socket=/var/run/mysqld/mysqld.sock -u ${DBUSER} -p${DBPASS} ${DBNAME} -e "SHOW TABLES LIKE 'domain'" -Bs)
   [[ -z ${DOMAIN_TABLE} ]] && sleep 10
 done
 log_f "OK" no_date
@@ -159,18 +174,6 @@ while true; do
   fi
   if [[ ! -f ${ACME_BASE}/acme/account.pem ]]; then
     log_f "Generating missing Lets Encrypt account key..."
-    if [[ ! -z ${ACME_CONTACT} ]]; then
-      if ! verify_email "${ACME_CONTACT}"; then
-        log_f "Invalid email address, will not start registration!"
-        sleep 365d
-        exec $(readlink -f "$0")
-      else
-        ACME_CONTACT_PARAMETER="--contact mailto:${ACME_CONTACT}"
-        log_f "Valid email address, using ${ACME_CONTACT} for registration"
-      fi
-    else
-      ACME_CONTACT_PARAMETER=""
-    fi
     openssl genrsa 4096 > ${ACME_BASE}/acme/account.pem
   else
     log_f "Using existing Lets Encrypt account key ${ACME_BASE}/acme/account.pem"
@@ -218,7 +221,7 @@ while true; do
 
   if [[ ${AUTODISCOVER_SAN} == "y" ]]; then
   # Fetch certs for autoconfig and autodiscover subdomains
-  ADDITIONAL_WC_ARR+=('autodiscover' 'autoconfig')
+  ADDITIONAL_WC_ARR+=('autodiscover' 'autoconfig' 'mta-sts')
   fi
 
   if [[ ${SKIP_IP_CHECK} != "y" ]]; then
@@ -231,7 +234,7 @@ while true; do
 
   #########################################
   # IP and webroot challenge verification #
-  SQL_DOMAINS=$(mysql --socket=/var/run/mysqld/mysqld.sock -u ${DBUSER} -p${DBPASS} ${DBNAME} -e "SELECT domain FROM domain WHERE backupmx=0 and active=1" -Bs)
+  SQL_DOMAINS=$(mariadb --skip-ssl --socket=/var/run/mysqld/mysqld.sock -u ${DBUSER} -p${DBPASS} ${DBNAME} -e "SELECT domain FROM domain WHERE backupmx=0 and active=1" -Bs)
   if [[ ! $? -eq 0 ]]; then
     log_f "Failed to read SQL domains, retrying in 1 minute..."
     sleep 1m
@@ -250,14 +253,46 @@ while true; do
     unset VALIDATED_CONFIG_DOMAINS_SUBDOMAINS
     declare -a VALIDATED_CONFIG_DOMAINS_SUBDOMAINS
     for SUBDOMAIN in "${ADDITIONAL_WC_ARR[@]}"; do
-      if [[  "${SUBDOMAIN}.${SQL_DOMAIN}" != "${MAILCOW_HOSTNAME}" ]]; then
-        if check_domain "${SUBDOMAIN}.${SQL_DOMAIN}"; then
-          VALIDATED_CONFIG_DOMAINS_SUBDOMAINS+=("${SUBDOMAIN}.${SQL_DOMAIN}")
-        fi
+      FULL_SUBDOMAIN="${SUBDOMAIN}.${SQL_DOMAIN}"
+
+      # Skip if subdomain matches MAILCOW_HOSTNAME
+      if [[ "${FULL_SUBDOMAIN}" == "${MAILCOW_HOSTNAME}" ]]; then
+        continue
+      fi
+      # Skip if subdomain is covered by a wildcard in ADDITIONAL_SAN
+      if is_covered_by_wildcard "${FULL_SUBDOMAIN}"; then
+        log_f "Subdomain '${FULL_SUBDOMAIN}' is covered by wildcard - skipping explicit subdomain"
+        continue
+      fi
+      # Validate and add subdomain
+      if check_domain "${FULL_SUBDOMAIN}"; then
+        VALIDATED_CONFIG_DOMAINS_SUBDOMAINS+=("${FULL_SUBDOMAIN}")
       fi
     done
     VALIDATED_CONFIG_DOMAINS+=("${VALIDATED_CONFIG_DOMAINS_SUBDOMAINS[*]}")
   done
+
+  # Fetch alias domains where target domain has MTA-STS enabled
+  if [[ ${AUTODISCOVER_SAN} == "y" ]]; then
+    SQL_ALIAS_DOMAINS=$(mariadb --skip-ssl --socket=/var/run/mysqld/mysqld.sock -u ${DBUSER} -p${DBPASS} ${DBNAME} -e "SELECT ad.alias_domain FROM alias_domain ad INNER JOIN mta_sts m ON ad.target_domain = m.domain WHERE ad.active = 1 AND m.active = 1" -Bs)
+    if [[ $? -eq 0 ]]; then
+      while read alias_domain; do
+        if [[ -z "${alias_domain}" ]]; then
+          # ignore empty lines
+          continue
+        fi
+        # Only add mta-sts subdomain for alias domains
+        if [[ "mta-sts.${alias_domain}" != "${MAILCOW_HOSTNAME}" ]]; then
+          # Skip if mta-sts subdomain is covered by a wildcard
+          if is_covered_by_wildcard "mta-sts.${alias_domain}"; then
+            log_f "Alias domain mta-sts subdomain 'mta-sts.${alias_domain}' is covered by wildcard - skipping"
+          elif check_domain "mta-sts.${alias_domain}"; then
+            VALIDATED_CONFIG_DOMAINS+=("mta-sts.${alias_domain}")
+          fi
+        fi
+      done <<< "${SQL_ALIAS_DOMAINS}"
+    fi
+  fi
   fi
 
   if check_domain ${MAILCOW_HOSTNAME}; then
@@ -286,20 +321,38 @@ while true; do
   done
   fi
 
+  # Check if MAILCOW_HOSTNAME is covered by a wildcard in ADDITIONAL_SAN
+  MAILCOW_HOSTNAME_COVERED=0
+  if [[ ! -z ${VALIDATED_MAILCOW_HOSTNAME} ]]; then
+    if is_covered_by_wildcard "${VALIDATED_MAILCOW_HOSTNAME}"; then
+      MAILCOW_PARENT_DOMAIN=$(echo ${VALIDATED_MAILCOW_HOSTNAME} | cut -d. -f2-)
+      log_f "MAILCOW_HOSTNAME '${VALIDATED_MAILCOW_HOSTNAME}' is covered by wildcard '*.${MAILCOW_PARENT_DOMAIN}' - skipping explicit hostname"
+      MAILCOW_HOSTNAME_COVERED=1
+    fi
+  fi
+
   # Unique domains for server certificate
   if [[ ${ENABLE_SSL_SNI} == "y" ]]; then
     # create certificate for server name and fqdn SANs only
-    SERVER_SAN_VALIDATED=(${VALIDATED_MAILCOW_HOSTNAME} $(echo ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
+    if [[ ${MAILCOW_HOSTNAME_COVERED} == "1" ]]; then
+      SERVER_SAN_VALIDATED=($(echo ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
+    else
+      SERVER_SAN_VALIDATED=(${VALIDATED_MAILCOW_HOSTNAME} $(echo ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
+    fi
   else
     # create certificate for all domains, including all subdomains from other domains [*]
-    SERVER_SAN_VALIDATED=(${VALIDATED_MAILCOW_HOSTNAME} $(echo ${VALIDATED_CONFIG_DOMAINS[*]} ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
+    if [[ ${MAILCOW_HOSTNAME_COVERED} == "1" ]]; then
+      SERVER_SAN_VALIDATED=($(echo ${VALIDATED_CONFIG_DOMAINS[*]} ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
+    else
+      SERVER_SAN_VALIDATED=(${VALIDATED_MAILCOW_HOSTNAME} $(echo ${VALIDATED_CONFIG_DOMAINS[*]} ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
+    fi
   fi
   if [[ ! -z ${SERVER_SAN_VALIDATED[*]} ]]; then
     CERT_NAME=${SERVER_SAN_VALIDATED[0]}
     VALIDATED_CERTIFICATES+=("${CERT_NAME}")
 
     # obtain server certificate if required
-    ACME_CONTACT_PARAMETER=${ACME_CONTACT_PARAMETER} DOMAINS=${SERVER_SAN_VALIDATED[@]} /srv/obtain-certificate.sh rsa
+    DOMAINS=${SERVER_SAN_VALIDATED[@]} /srv/obtain-certificate.sh rsa
     RETURN="$?"
     if [[ "$RETURN" == "0" ]]; then # 0 = cert created successfully
       CERT_AMOUNT_CHANGED=1

@@ -33,6 +33,8 @@ if ($https_port === FALSE) {
 //$https_port = 1234;
 // Other settings =>
 $autodiscover_config = array(
+  'displayName' => 'A mailcow mail server',
+  'displayShortName' => 'mail server',
   // General autodiscover service type: "activesync" or "imap"
   // emClient uses autodiscover, but does not support ActiveSync. mailcow excludes emClient from ActiveSync.
   // With SOGo disabled, the type will always fallback to imap. CalDAV and CardDAV will be excluded, too.
@@ -83,8 +85,9 @@ $DEFAULT_LANG = 'en-gb';
 // https://en.wikipedia.org/wiki/IETF_language_tag
 $AVAILABLE_LANGUAGES = array(
   // 'ca-es' => 'Català (Catalan)',
+  'bg-bg' => 'Български (Bulgarian)',
   'cs-cz' => 'Čeština (Czech)',
-  'da-dk' => 'Danish (Dansk)',
+  'da-dk' => 'Dansk (Danish)',
   'de-de' => 'Deutsch (German)',
   'en-gb' => 'English',
   'es-es' => 'Español (Spanish)',
@@ -109,6 +112,8 @@ $AVAILABLE_LANGUAGES = array(
   'sv-se' => 'Svenska (Swedish)',
   'tr-tr' => 'Türkçe (Turkish)',
   'uk-ua' => 'Українська (Ukrainian)',
+  'uz-uz' => 'Oʻzbekcha (Uzbek)',
+  'vi-vn' => 'Tiếng Việt (Vietnamese)',
   'zh-cn' => '简体中文 (Simplified Chinese)',
   'zh-tw' => '繁體中文 (Traditional Chinese)',
 );
@@ -125,7 +130,9 @@ $SHOW_DKIM_PRIV_KEYS = false;
 $MAILCOW_APPS = array(
   array(
     'name' => 'Webmail',
-    'link' => '/SOGo/',
+    'link' => '/SOGo/so',
+    'user_link' => '/SOGo/so',
+    'hide' => true
   )
 );
 
@@ -149,6 +156,13 @@ $LOG_PAGINATION_SIZE = 50;
 
 // Session lifetime in seconds
 $SESSION_LIFETIME = 10800;
+
+// Session SameSite Policy
+// Use "None", "Lax" or "Strict"
+$SESSION_SAMESITE_POLICY = "Lax";
+
+// Name of the session cookie
+$SESSION_NAME = "MCSESSID";
 
 // Label for OTP devices
 $OTP_LABEL = "mailcow UI";
@@ -180,8 +194,17 @@ $MAILBOX_DEFAULT_ATTRIBUTES['tls_enforce_out'] = false;
 // Force password change on next login (only allows login to mailcow UI)
 $MAILBOX_DEFAULT_ATTRIBUTES['force_pw_update'] = false;
 
-// Enable SOGo access (set to false to disable access by default)
+// Force 2FA enrollment at next login
+$MAILBOX_DEFAULT_ATTRIBUTES['force_tfa'] = false;
+
+// Enable SOGo access - Users will be redirected to SOGo after login (set to false to disable redirect by default)
 $MAILBOX_DEFAULT_ATTRIBUTES['sogo_access'] = true;
+
+// How to handle tagged emails
+// none      - No special handling
+// subfolder - Create subfolder under INBOX (e.g. "INBOX/Facebook")
+// subject   - Add tag to subject (e.g. "[Facebook] Subject")
+$MAILBOX_DEFAULT_ATTRIBUTES['tagged_mail_handler'] = "none";
 
 // Send notification when quarantine is not empty (never, hourly, daily, weekly)
 $MAILBOX_DEFAULT_ATTRIBUTES['quarantine_notification'] = 'hourly';
@@ -197,6 +220,12 @@ $MAILBOX_DEFAULT_ATTRIBUTES['smtp_access'] = true;
 
 // Mailbox has sieve access by default
 $MAILBOX_DEFAULT_ATTRIBUTES['sieve_access'] = true;
+
+// Mailbox has ActiveSync/EAS access by default
+$MAILBOX_DEFAULT_ATTRIBUTES['eas_access'] = true;
+
+// Mailbox has CalDAV/CardDAV (DAV) access by default
+$MAILBOX_DEFAULT_ATTRIBUTES['dav_access'] = true;
 
 // Mailbox receives notifications about...
 // "add_header" - mail that was put into the Junk folder
@@ -235,12 +264,12 @@ $FIDO2_FORMATS = array('apple', 'android-key', 'android-safetynet', 'fido-u2f', 
 // Set visible Rspamd maps in mailcow UI, do not change unless you know what you are doing
 $RSPAMD_MAPS = array(
   'regex' => array(
-    'Header-From: Blacklist' => 'global_mime_from_blacklist.map',
-    'Header-From: Whitelist' => 'global_mime_from_whitelist.map',
-    'Envelope Sender Blacklist' => 'global_smtp_from_blacklist.map',
-    'Envelope Sender Whitelist' => 'global_smtp_from_whitelist.map',
-    'Recipient Blacklist' => 'global_rcpt_blacklist.map',
-    'Recipient Whitelist' => 'global_rcpt_whitelist.map',
+    'Header-From: Denylist' => 'global_mime_from_blacklist.map',
+    'Header-From: Allowlist' => 'global_mime_from_whitelist.map',
+    'Envelope Sender Denylist' => 'global_smtp_from_blacklist.map',
+    'Envelope Sender Allowlist' => 'global_smtp_from_whitelist.map',
+    'Recipient Denylist' => 'global_rcpt_blacklist.map',
+    'Recipient Allowlist' => 'global_rcpt_whitelist.map',
     'Fishy TLDS (only fired in combination with bad words)' => 'fishy_tlds.map',
     'Bad Words (only fired in combination with fishy TLDs)' => 'bad_words.map',
     'Bad Words DE (only fired in combination with fishy TLDs)' => 'bad_words_de.map',
@@ -254,57 +283,57 @@ $RSPAMD_MAPS = array(
 
 $IMAPSYNC_OPTIONS = array(
   'whitelist' => array(
-    'abort',     
-    'authmd51',        
-    'authmd52',           
+    'abort',
+    'authmd51',
+    'authmd52',
     'authmech1',
     'authmech2',
-    'authuser1', 
-    'authuser2', 
-    'debug',   
-    'debugcontent', 
-    'debugcrossduplicates', 
-    'debugflags',    
-    'debugfolders',            
-    'debugimap',    
-    'debugimap1',     
-    'debugimap2',   
-    'debugmemory',       
-    'debugssl',              
+    'authuser1',
+    'authuser2',
+    'debug',
+    'debugcontent',
+    'debugcrossduplicates',
+    'debugflags',
+    'debugfolders',
+    'debugimap',
+    'debugimap1',
+    'debugimap2',
+    'debugmemory',
+    'debugssl',
     'delete1emptyfolders',
-    'delete2folders',    
-    'disarmreadreceipts', 
+    'delete2folders',
+    'disarmreadreceipts',
     'domain1',
     'domain2',
-    'domino1',   
-    'domino2',  
+    'domino1',
+    'domino2',
     'dry',
     'errorsmax',
-    'exchange1',   
-    'exchange2',   
+    'exchange1',
+    'exchange2',
     'exitwhenover',
     'expunge1',
-    'f1f2',  
-    'filterbuggyflags',  
+    'f1f2',
+    'filterbuggyflags',
     'folder',
     'folderfirst',
     'folderlast',
     'folderrec',
-    'gmail1',     
-    'gmail2',    
-    'idatefromheader',   
+    'gmail1',
+    'gmail2',
+    'idatefromheader',
     'include',
     'inet4',
     'inet6',
-    'justconnect',  
-    'justfolders',  
-    'justfoldersizes',  
-    'justlogin',   
-    'keepalive1',   
-    'keepalive2',   
+    'justconnect',
+    'justfolders',
+    'justfoldersizes',
+    'justlogin',
+    'keepalive1',
+    'keepalive2',
     'log',
     'logdir',
-    'logfile',        
+    'logfile',
     'maxbytesafter',
     'maxlinelength',
     'maxmessagespersecond',
@@ -312,62 +341,62 @@ $IMAPSYNC_OPTIONS = array(
     'maxsleep',
     'minage',
     'minsize',
-    'noabletosearch', 
-    'noabletosearch1',  
-    'noabletosearch2',   
-    'noexpunge1',        
-    'noexpunge2',   
+    'noabletosearch',
+    'noabletosearch1',
+    'noabletosearch2',
+    'noexpunge1',
+    'noexpunge2',
     'nofoldersizesatend',
-    'noid',       
-    'nolog',  
-    'nomixfolders',          
-    'noresyncflags',   
-    'nossl1',   
-    'nossl2',            
-    'nosyncacls',      
-    'notls1', 
-    'notls2',              
-    'nouidexpunge2',   
-    'nousecache',      
+    'noid',
+    'nolog',
+    'nomixfolders',
+    'noresyncflags',
+    'nossl1',
+    'nossl2',
+    'nosyncacls',
+    'notls1',
+    'notls2',
+    'nouidexpunge2',
+    'nousecache',
     'oauthaccesstoken1',
     'oauthaccesstoken2',
     'oauthdirect1',
     'oauthdirect2',
-    'office1',    
-    'office2',      
-    'pidfile', 
-    'pidfilelocking', 
+    'office1',
+    'office2',
+    'pidfile',
+    'pidfilelocking',
     'prefix1',
     'prefix2',
-    'proxyauth1',  
-    'proxyauth2',         
-    'resyncflags',     
-    'resynclabels',     
-    'search', 
+    'proxyauth1',
+    'proxyauth2',
+    'resyncflags',
+    'resynclabels',
+    'search',
     'search1',
-    'search2', 
+    'search2',
     'sep1',
     'sep2',
     'showpasswords',
     'skipemptyfolders',
-    'ssl2',            
+    'ssl2',
     'sslargs1',
-    'sslargs2', 
+    'sslargs2',
     'subfolder1',
-    'subscribe',   
+    'subscribe',
     'subscribed',
     'syncacls',
     'syncduplicates',
     'syncinternaldates',
-    'synclabels', 
-    'tests',     
-    'testslive',       
-    'testslive6',     
-    'tls2',             
-    'truncmess',  
-    'usecache', 
-    'useheader',  
-    'useuid'    
+    'synclabels',
+    'tests',
+    'testslive',
+    'testslive6',
+    'tls2',
+    'truncmess',
+    'usecache',
+    'useheader',
+    'useuid'
   ),
   'blacklist' => array(
     'skipmess',

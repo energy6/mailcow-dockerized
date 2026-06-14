@@ -1,12 +1,12 @@
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 LABEL maintainer="The Infrastructure Company GmbH <info@servercow.de>"
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG RSPAMD_VER=rspamd_3.10.2-1~b8a232043
-ARG CODENAME=bookworm
+ARG RSPAMD_VER=rspamd_3.14.3-1~236eb65
+ARG CODENAME=trixie
 ENV LC_ALL=C
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
   tzdata \
   ca-certificates \
   gnupg2 \
@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y \
   dnsutils \
   netcat-traditional \
   wget \
-  redis-tools \ 
-  procps \ 
+  redis-tools \
+  procps \
   nano \
   lua-cjson \
   && arch=$(arch | sed s/aarch64/arm64/ | sed s/x86_64/amd64/) \

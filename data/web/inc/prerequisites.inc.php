@@ -46,10 +46,8 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/lib/CSSminifierExtended.php';
 
 require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/lib/array_merge_real.php';
 
-// U2F API + T/HOTP API
-// u2f - deprecated, should be removed
-$u2f = new u2flib_server\U2F('https://' . $_SERVER['HTTP_HOST']);
-$qrprovider = new RobThree\Auth\Providers\Qr\QRServerProvider();
+// T/HOTP API
+$qrprovider = new RobThree\Auth\Providers\Qr\BaconQrCodeProvider();
 $tfa = new RobThree\Auth\TwoFactorAuth($OTP_LABEL, 6, 30, 'sha1', $qrprovider);
 
 // FIDO2
@@ -123,7 +121,7 @@ class mailcowPdo extends OAuth2\Storage\Pdo {
     $this->config['user_table'] = 'mailbox';
   }
   public function checkUserCredentials($username, $password) {
-    if (check_login($username, $password) == 'user') {
+    if (check_login($username, $password, array("role" => "user", "service" => "NONE")) == 'user') {
       return true;
     }
     return false;
@@ -178,7 +176,12 @@ function get_remote_ip() {
 
 // Load core functions first
 require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/functions.inc.php';
+require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/functions.auth.inc.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/sessions.inc.php';
+
+// Init Identity Provider
+$iam_provider = identity_provider('init');
+$iam_settings = identity_provider('get');
 
 // IMAP lib
 // use Ddeboer\Imap\Server;
@@ -294,7 +297,7 @@ require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/functions.rspamd.inc.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/functions.tls_policy_maps.inc.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/functions.transports.inc.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/init_db.inc.php';
-require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/triggers.inc.php';
+require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/triggers.global.inc.php';
 require_once $_SERVER['DOCUMENT_ROOT'] . '/inc/twig.inc.php';
 init_db_schema();
 if (isset($_SESSION['mailcow_cc_role'])) {

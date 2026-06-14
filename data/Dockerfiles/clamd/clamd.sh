@@ -8,7 +8,7 @@ fi
 
 # Cleaning up garbage
 echo "Cleaning up tmp files..."
-rm -rf /var/lib/clamav/clamav-*.tmp
+rm -rf /var/lib/clamav/tmp.*
 
 # Prepare whitelist
 
@@ -91,6 +91,7 @@ done
 ) &
 BACKGROUND_TASKS+=($!)
 
+echo "$(clamd -V) is starting... please wait a moment."
 nice -n10 clamd &
 BACKGROUND_TASKS+=($!)
 

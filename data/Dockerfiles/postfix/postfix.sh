@@ -329,14 +329,17 @@ query = SELECT goto FROM alias
           SELECT id FROM alias
             WHERE address='%s'
             AND (active='1' OR active='2')
+            AND sender_allowed='1'
         ), (
           SELECT id FROM alias
             WHERE address='@%d'
             AND (active='1' OR active='2')
+            AND sender_allowed='1'
         )
       )
     )
     AND active='1'
+    AND sender_allowed='1'
     AND (domain IN
       (SELECT domain FROM domain
         WHERE domain='%d'
@@ -390,12 +393,12 @@ hosts = unix:/var/run/mysqld/mysqld.sock
 dbname = ${DBNAME}
 query = SELECT goto FROM spamalias
   WHERE address='%s'
-    AND validity >= UNIX_TIMESTAMP()
+    AND (validity >= UNIX_TIMESTAMP() OR permanent != 0)
 EOF
 
 if [ ! -f /opt/postfix/conf/dns_blocklists.cf ]; then
   cat <<EOF > /opt/postfix/conf/dns_blocklists.cf
-# This file can be edited. 
+# This file can be edited.
 # Delete this file and restart postfix container to revert any changes.
 postscreen_dnsbl_sites = wl.mailspike.net=127.0.0.[18;19;20]*-2
   hostkarma.junkemailfilter.com=127.0.0.1*-2
@@ -403,7 +406,6 @@ postscreen_dnsbl_sites = wl.mailspike.net=127.0.0.[18;19;20]*-2
   list.dnswl.org=127.0.[0..255].1*-4
   list.dnswl.org=127.0.[0..255].2*-6
   list.dnswl.org=127.0.[0..255].3*-8
-  ix.dnsbl.manitu.net*2
   bl.spamcop.net*2
   bl.suomispam.net*2
   hostkarma.junkemailfilter.com=127.0.0.2*3
@@ -417,6 +419,10 @@ postscreen_dnsbl_sites = wl.mailspike.net=127.0.0.[18;19;20]*-2
   bl.mailspike.net=127.0.0.[10;11;12]*4
 EOF
 fi
+
+# Remove discontinued DNSBLs from existing dns_blocklists.cf
+sed -i '/ix\.dnsbl\.manitu\.net\*2/d' /opt/postfix/conf/dns_blocklists.cf # Nixspam
+
 DNSBL_CONFIG=$(grep -v '^#' /opt/postfix/conf/dns_blocklists.cf | grep '\S')
 
 if [ ! -z "$DNSBL_CONFIG" ]; then
@@ -506,6 +512,11 @@ chmod 640 /opt/postfix/conf/sql/*.cf /opt/postfix/conf/custom_transport.pcre
 chgrp -R postdrop /var/spool/postfix/public
 chgrp -R postdrop /var/spool/postfix/maildrop
 postfix set-permissions
+
+# Checking if there is a leftover of a crashed postfix container before starting a new one
+if [ -e /var/spool/postfix/pid/master.pid ]; then
+  rm -rf /var/spool/postfix/pid/master.pid
+fi
 
 # Check Postfix configuration
 postconf -c /opt/postfix/conf > /dev/null

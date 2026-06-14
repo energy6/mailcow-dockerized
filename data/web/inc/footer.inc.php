@@ -26,23 +26,25 @@ if (is_array($alertbox_log_parser)) {
 
 // map tfa details for twig
 $pending_tfa_authmechs = [];
-foreach($_SESSION['pending_tfa_methods'] as $authdata){
-  $pending_tfa_authmechs[$authdata['authmech']] = false;
-}
-if (isset($pending_tfa_authmechs['webauthn'])) {
-  $pending_tfa_authmechs['webauthn'] = true;
-}
-if (!isset($pending_tfa_authmechs['webauthn']) 
-    && isset($pending_tfa_authmechs['yubi_otp'])) {
-  $pending_tfa_authmechs['yubi_otp'] = true;
-}
-if (!isset($pending_tfa_authmechs['webauthn']) 
-    && !isset($pending_tfa_authmechs['yubi_otp'])
-    && isset($pending_tfa_authmechs['totp'])) {
-  $pending_tfa_authmechs['totp'] = true;
-}
-if (isset($pending_tfa_authmechs['u2f'])) {
-  $pending_tfa_authmechs['u2f'] = true;
+if (array_key_exists('pending_tfa_methods', $_SESSION)) {
+  foreach($_SESSION['pending_tfa_methods'] as $authdata){
+    $pending_tfa_authmechs[$authdata['authmech']] = false;
+  }
+  if (isset($pending_tfa_authmechs['webauthn'])) {
+    $pending_tfa_authmechs['webauthn'] = true;
+  }
+  if (!isset($pending_tfa_authmechs['webauthn']) 
+      && isset($pending_tfa_authmechs['yubi_otp'])) {
+    $pending_tfa_authmechs['yubi_otp'] = true;
+  }
+  if (!isset($pending_tfa_authmechs['webauthn']) 
+      && !isset($pending_tfa_authmechs['yubi_otp'])
+      && isset($pending_tfa_authmechs['totp'])) {
+    $pending_tfa_authmechs['totp'] = true;
+  }
+  if (isset($pending_tfa_authmechs['u2f'])) {
+    $pending_tfa_authmechs['u2f'] = true;
+  }
 }
 
 // globals
@@ -62,10 +64,14 @@ $globalVariables = [
   'pending_tfa_methods' => @$_SESSION['pending_tfa_methods'],
   'pending_tfa_authmechs' => $pending_tfa_authmechs,
   'pending_mailcow_cc_username' => @$_SESSION['pending_mailcow_cc_username'],
+  'pending_tfa_setup' => !empty($_SESSION['pending_tfa_setup']),
+  'pending_pw_update_modal' => !empty($_SESSION['pending_pw_update']),
   'lang_footer' => json_encode($lang['footer']),
   'lang_acl' => json_encode($lang['acl']),
   'lang_tfa' => json_encode($lang['tfa']),
   'lang_fido2' => json_encode($lang['fido2']),
+  'lang_success' => json_encode($lang['success']),
+  'lang_danger' => json_encode($lang['danger']),
   'docker_timeout' => $DOCKER_TIMEOUT,
   'session_lifetime' => (int)$SESSION_LIFETIME,
   'csrf_token' => $_SESSION['CSRF']['TOKEN'],

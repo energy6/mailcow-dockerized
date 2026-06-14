@@ -11,8 +11,8 @@
   <link rel="stylesheet" href="{{ css_path }}">
   <script>
     // check if darkmode is preferred by OS or set by localStorage
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches && localStorage.getItem("theme") !== "light" ||
-        localStorage.getItem("theme") === "dark") {
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches && localStorage.getItem("mailcow_theme") !== "light" ||
+        localStorage.getItem("mailcow_theme") === "dark") {
       var head  = document.getElementsByTagName('head')[0];
       var link  = document.createElement('link');
       link.id   = 'dark-mode-theme';
@@ -29,7 +29,7 @@
 <body>
 <div class="overlay"></div>
 {% block navbar %}
-<nav class="navbar navbar-expand-lg navbar-light bg-light navbar-fixed-top p-0">
+<nav class="navbar navbar-expand-lg navbar-light bg-light sticky-top p-0">
   <div class="container-fluid">
     <a class="navbar-brand" href="/">
       <img class="main-logo" alt="mailcow-logo" src="{{ logo|default('/img/cow_mailcow.svg') }}">
@@ -60,49 +60,67 @@
           </ul>
         </li>
         {% endif %}
+
         {% if mailcow_cc_role %}
+        {% if mailcow_cc_role == 'admin' %}
         <li class="nav-item dropdown">
           <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false">{{ lang.header.mailcow_system }}</a>
           <ul class="dropdown-menu">
-            {% if mailcow_cc_role == 'admin' %}
-            <li><a href="/debug" class="dropdown-item {% if is_uri('debug') %}active{% endif %}">{{ lang.header.debug }}</a></li>
-            <li><a href="/admin" class="dropdown-item {% if is_uri('admin') %}active{% endif %}">{{ lang.header.mailcow_config }}</a></li>
-            {% endif %}
-            {% if mailcow_cc_role != 'admin' %}
-            <li><a href="/user" class="dropdown-item {% if is_uri('user') %}active{% endif %}">{{ lang.header.user_settings }}</a></li>
-            {% endif %}
+            <li><a href="/admin/dashboard" class="dropdown-item {% if is_uri('dashboard') %}active{% endif %}">{{ lang.header.debug }}</a></li>
+            <li><a href="/admin/system" class="dropdown-item {% if is_uri('system') %}active{% endif %}">{{ lang.header.mailcow_config }}</a></li>
           </ul>
         </li>
         <li class="nav-item dropdown">
           <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false">{{ lang.header.email }}</a>
           <ul class="dropdown-menu">
-            {% if mailcow_cc_role == 'admin' or mailcow_cc_role == 'domainadmin' %}
-            <li><a href="/mailbox" class="dropdown-item {% if is_uri('mailbox') %}active{% endif %}">{{ lang.header.mailcow_config }}</a></li>
-            {% endif %}
+            <li><a href="/admin/mailbox" class="dropdown-item {% if is_uri('mailbox') %}active{% endif %}">{{ lang.header.mailcow_config }}</a></li>
             <li><a href="/quarantine" class="dropdown-item {% if is_uri('quarantine') %}active{% endif %}">{{ lang.header.quarantine }}</a></li>
-            {% if mailcow_cc_role == 'admin' %}
-            <li><a href="/queue" class="dropdown-item {% if is_uri('queue') %}active{% endif %}">{{ lang.queue.queue_manager }}</a></li>
-            {% endif %}
-            {% if mailcow_cc_role == 'admin' %}
+            <li><a href="/admin/queue" class="dropdown-item {% if is_uri('queue') %}active{% endif %}">{{ lang.queue.queue_manager }}</a></li>
             <li><a href="#" class="dropdown-item" data-bs-toggle="modal" data-container="sogo-mailcow" data-bs-target="#RestartContainer">{{ lang.header.restart_sogo }}</a></li>
-            {% endif %}
           </ul>
         </li>
         {% endif %}
-        {% if mailcow_apps or app_links %}
+        {% if mailcow_cc_role == 'domainadmin' %}
+        <li class="nav-item dropdown">
+          <a href="/domainadmin/user" class="nav-link" role="button" aria-expanded="false">{{ lang.header.user_settings }}</a>
+        </li>
+        {% elseif mailcow_cc_role == 'user' %}
+        <li class="nav-item dropdown">
+          <a href="/user" class="nav-link" role="button" aria-expanded="false">{{ lang.header.user_settings }}</a>
+        </li>
+        {% endif %}
+
+        {% if mailcow_cc_role == 'domainadmin' %}
+        <li class="nav-item dropdown">
+          <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false">{{ lang.header.email }}</a>
+          <ul class="dropdown-menu">
+            <li><a href="/domainadmin/mailbox" class="dropdown-item {% if is_uri('mailbox') %}active{% endif %}">{{ lang.header.mailcow_config }}</a></li>
+            <li><a href="/quarantine" class="dropdown-item {% if is_uri('quarantine') %}active{% endif %}">{{ lang.header.quarantine }}</a></li>
+          </ul>
+        </li>
+        {% endif %}
+
+        {% if mailcow_cc_role == 'user' %}
+        <li class="nav-item dropdown">
+          <a href="/quarantine" class="nav-link">{{ lang.header.quarantine }}</a>
+        </li>
+        {% endif %}
+        {% endif %}
+
+        {% if mailcow_apps_processed or app_links %}
         <li class="nav-item dropdown">
           <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false"><i class="bi bi-link-45deg me-2"></i> {{ ui_texts.apps_name|raw }}</a>
           <ul class="dropdown-menu">
-            {% for app in mailcow_apps %}
-              {% if not skip_sogo or not is_uri('SOGo', app.link) %}
+            {% for app in mailcow_apps_processed %}
+              {% if not skip_sogo or not is_uri('SOGo', app.user_link) %}
               <li {% if app.description %}title="{{ app.description }}"{% endif %}>
-                <a href="{{ app.link }}" class="dropdown-item">{{ app.name }}</a>
+                <a href="{{ app.user_link }}" class="dropdown-item">{{ app.name }}</a>
               </li>
               {% endif %}
             {% endfor %}
-            {% for row in app_links %}
+            {% for row in app_links_processed %}
               {% for key, val in row %}
-              <li><a href="{{ val }}" class="dropdown-item">{{ key }}</a></li>
+              <li><a href="{{ val.user_link }}" class="dropdown-item">{{ key }}</a></li>
               {% endfor %}
             {% endfor %}
           </ul>
@@ -126,13 +144,13 @@
 
 <form action="/" method="post" id="logout"><input type="hidden" name="logout"></form>
 
-{% if ui_texts.ui_announcement_text and ui_texts.ui_announcement_active and not is_root_uri %}
+{% if ui_texts.ui_announcement_text and ui_texts.ui_announcement_active and not is_root_uri and mailcow_cc_username %}
 <div class="container mt-4">
   <div class="alert alert-{{ ui_texts.ui_announcement_type }}">{{ ui_texts.ui_announcement_text }}</div>
 </div>
 {% endif %}
 
-<div class="container my-4">
+<div class="container flex-grow-1 my-4">
 {% block content %}{% endblock %}
 </div>
 
@@ -144,8 +162,11 @@
   var lang_acl = {{ lang_acl|raw }};
   var lang_tfa = {{ lang_tfa|raw }};
   var lang_fido2 = {{ lang_fido2|raw }};
+  var lang_success = {{ lang_success|raw }};
+  var lang_danger = {{ lang_danger|raw }};
   var docker_timeout = {{ docker_timeout|raw }} * 1000;
   var mailcow_cc_role = '{{ mailcow_cc_role }}';
+  {% if mailcow_cc_username %}
   var mailcow_info = {
     version_tag: '{{ mailcow_info.version_tag }}',
     last_version_tag: '{{ mailcow_info.last_version_tag }}',
@@ -155,13 +176,24 @@
     project_repo: '{{ mailcow_info.git_repo }}',
     branch: '{{ mailcow_info.mailcow_branch }}'
   };
+  {% else %}
+  var mailcow_info = {
+    version_tag: '',
+    last_version_tag: '',
+    updatedAt: '',
+    project_url: '',
+    project_owner: '',
+    project_repo: '',
+    branch: ''
+  };
+  {% endif %}
 
 $(window).scroll(function() {
   sessionStorage.scrollTop = $(this).scrollTop();
 });
 // Select language and reopen active URL without POST
 function setLang(sel) {
-  $.post( '{{ uri }}', {lang: sel} );
+  $.post( '{{ uri|escape("js") }}', {lang: sel} );
   window.location.href = window.location.pathname + window.location.search;
 }
 // FIDO2 functions
@@ -235,7 +267,7 @@ function recursiveBase64StrToArrayBuffer(obj) {
     $(".totp-authenticator-selection").click(function(){
       $(".totp-authenticator-selection").removeClass("active");
       $(this).addClass("active");
-      
+
       var id = $(this).children('input').first().val();
       $("#totp_selected_id").val(id);
 
@@ -244,7 +276,7 @@ function recursiveBase64StrToArrayBuffer(obj) {
     if ($('.totp-authenticator-selection').length == 1 &&
         $('#pending_tfa_tab_yubi_otp').length == 0 &&
         $('.webauthn-authenticator-selection').length == 0){
-      
+
       // select default if only one authenticator exists
       $('.totp-authenticator-selection').addClass("active");
 
@@ -257,7 +289,7 @@ function recursiveBase64StrToArrayBuffer(obj) {
     $('#pending_tfa_tab_totp').on('shown.bs.tab', function() {
       // autofocus
       setTimeout(function() { $("#collapseTotpTFA").find('input[name="token"]').focus(); }, 200);
-    });    
+    });
     // validate Yubi OTP tfa
     if ($('.webauthn-authenticator-selection').length == 0){
       // autofocus
@@ -276,10 +308,10 @@ function recursiveBase64StrToArrayBuffer(obj) {
     $(".webauthn-authenticator-selection").click(function(){
       $(".webauthn-authenticator-selection").removeClass("active");
       $(this).addClass("active");
-      
+
       var id = $(this).children('input').first().val();
       $("#webauthn_selected_id").val(id);
-      
+
       var webauthn_status_auth = document.getElementById('webauthn_status_auth');
       webauthn_status_auth.style.setProperty('display', 'flex', 'important');
       var webauthn_return_code = document.getElementById('webauthn_return_code');
@@ -302,7 +334,7 @@ function recursiveBase64StrToArrayBuffer(obj) {
           console.log(json);
           if (json.success === false) throw new Error();
           if (json.type === "error") throw new Error(json.msg);
-      
+
           recursiveBase64StrToArrayBuffer(json);
           return json;
         }).then(getCredentialArgs => {
@@ -329,7 +361,7 @@ function recursiveBase64StrToArrayBuffer(obj) {
           webauthn_return_code.style.setProperty('display', 'block', 'important');
           webauthn_return_code.innerHTML = lang_tfa.error_code + ': ' + err + ' ' + lang_tfa.reload_retry;
         });
-      } 
+      }
     });
     $('#ConfirmTFAModal').on('hidden.bs.modal', function(){
       // cancel pending login
@@ -340,6 +372,112 @@ function recursiveBase64StrToArrayBuffer(obj) {
         url: '/inc/ajax/destroy_tfa_auth.php',
         complete: function(data){
           window.location = window.location.href.split("#")[0];
+        }
+      });
+    });
+  {% endif %}
+
+  {% if pending_tfa_setup %}
+    var setupTFAModal = new bootstrap.Modal(document.getElementById("SetupTFAModal"), {
+      backdrop: 'static',
+      keyboard: false
+    });
+    setupTFAModal.show();
+
+    // Load QR code for TOTP setup in SetupTFAModal
+    var setupTotpSecret = $('#setup-tfa-qr-img').data('totp-secret');
+    if (setupTotpSecret) {
+      $.ajax({
+        type: "GET",
+        url: "/inc/ajax/qr_gen.php?token=" + encodeURIComponent(setupTotpSecret),
+        success: function(data) {
+          $('#setup-tfa-qr-img').attr('src', data);
+        }
+      });
+    }
+
+    // WebAuthn registration for SetupTFAModal
+    $('#start_setup_webauthn_register').click(function() {
+      if (!window.fetch || !navigator.credentials || !navigator.credentials.create) {
+        window.alert('Browser not supported.');
+        return;
+      }
+      var keyId = $('#setup_webauthn_reg_form input[name=key_id]').val();
+      if (!keyId) {
+        $('#setup_webauthn_return_code').show().text('Please fill in the key ID first.');
+        return;
+      }
+      window.fetch('/api/v1/get/webauthn-tfa-registration', {method: 'GET', cache: 'no-cache'}).then(function(response) {
+        return response.json();
+      }).then(function(json) {
+        if (json.success === false) throw new Error(json.error || 'Registration failed');
+        recursiveBase64StrToArrayBuffer(json);
+        return navigator.credentials.create(json);
+      }).then(function(cred) {
+        return {
+          id: cred.id,
+          rawId: arrayBufferToBase64(cred.rawId),
+          response: {
+            attestationObject: arrayBufferToBase64(cred.response.attestationObject),
+            clientDataJSON: arrayBufferToBase64(cred.response.clientDataJSON)
+          },
+          type: cred.type
+        };
+      }).then(function(credData) {
+        $('#setup_webauthn_register_data').val(JSON.stringify(credData));
+        $('#setup_webauthn_reg_form input[name=set_tfa]').val('1');
+        $('#setup_webauthn_reg_form').submit();
+      }).catch(function(err) {
+        $('#setup_webauthn_return_code').show().text(err.message || 'Registration failed');
+      });
+    });
+  {% endif %}
+
+  {% if pending_pw_update_modal and not pending_tfa_setup and not pending_tfa_methods %}
+    var changePWModal = new bootstrap.Modal(document.getElementById("ChangePWModal"), {
+      backdrop: 'static',
+      keyboard: false
+    });
+    changePWModal.show();
+
+    $('#changePWModalForm').on('submit', function(e) {
+      e.preventDefault();
+      var newPw = $('#changePWNew').val();
+      var newPw2 = $('#changePWNew2').val();
+      var role = '{{ mailcow_cc_role }}';
+      var username = '{{ mailcow_cc_username }}';
+
+      var url, attrPayload, itemsPayload;
+      if (role === 'admin') {
+        url = '/api/v1/edit/admin';
+        attrPayload = {password: newPw, password2: newPw2};
+        itemsPayload = [username];
+      } else {
+        url = '/api/v1/edit/self';
+        attrPayload = {user_new_pass: newPw, user_new_pass2: newPw2};
+        itemsPayload = null;
+      }
+
+      $('#changePWAlert').hide();
+      $.ajax({
+        type: 'POST',
+        url: url,
+        data: {
+          attr: JSON.stringify(attrPayload),
+          items: JSON.stringify(itemsPayload),
+          csrf_token: '{{ csrf_token }}'
+        },
+        dataType: 'json',
+        success: function(data) {
+          if (data && data[0] && data[0].type === 'success') {
+            window.location.reload();
+          } else {
+            var msg = (data && data[0] && data[0].msg) ? data[0].msg : 'Password change failed.';
+            $('#changePWAlert').show().text(msg);
+          }
+        },
+        error: function() {
+          $('#changePWAlert').show().text('Request failed. Please try again.');
         }
       });
     });
@@ -371,16 +509,14 @@ function recursiveBase64StrToArrayBuffer(obj) {
         signature : cred.response.signature ? arrayBufferToBase64(cred.response.signature) : null
       };
     }).then(JSON.stringify).then(function(AuthenticatorAttestationResponse) {
-      return window.fetch("/api/v1/process/fido2-args", {method:'POST', body: AuthenticatorAttestationResponse, cache:'no-cache'});
+      var formData = new FormData();
+      formData.append("token", AuthenticatorAttestationResponse);
+      formData.append("verify_fido2_login", "true");
+
+      return window.fetch(window.location.href, {method:'POST', body: formData, cache:'no-cache'});
     }).then(function(response) {
-      return response.json();
-    }).then(function(json) {
-      if (json.success) {
-        window.location = window.location.href.split("#")[0];
-  } else {
-    throw new Error();
-  }
-  }).catch(function(err) {
+      window.location = window.location.href.split("#")[0];
+    }).catch(function(err) {
     if (typeof err.message === 'undefined') {
       mailcow_alert_box(lang_fido2.fido2_validation_failed, "danger");
     } else {
@@ -540,11 +676,19 @@ function recursiveBase64StrToArrayBuffer(obj) {
         Version: <a href="{{ mailcow_info.git_project_url }}/releases/tag/{{ mailcow_info.version_tag }}" target="_blank">{{ mailcow_info.version_tag }}
     </a>
   </span>
-  {% endif %}  
+  {% endif %}
   {% if mailcow_cc_username and mailcow_info.mailcow_branch|lower == "nightly" and mailcow_info.version_tag|default %}
   <span class="version">
     🛠️🐮 + 🐋 = 💕
         Nightly: <a href="{{ mailcow_info.git_project_url }}/commit/{{ mailcow_info.git_commit }}" target="_blank">{{ mailcow_info.version_tag }}
+    </a><br>
+    <span style="text-align:right;display:block;">Build: {{ mailcow_info.git_commit_date }}</span>
+  </span>
+  {% endif %}
+  {% if mailcow_cc_username and mailcow_info.mailcow_branch|lower == "legacy" and mailcow_info.version_tag|default %}
+  <span class="version">
+    ⚰️🐮 + 🐋 = 💕
+        Legacy: <a href="{{ mailcow_info.git_project_url }}/commit/{{ mailcow_info.git_commit }}" target="_blank">{{ mailcow_info.version_tag }}
     </a><br>
     <span style="text-align:right;display:block;">Build: {{ mailcow_info.git_commit_date }}</span>
   </span>

@@ -20,6 +20,10 @@ if [[ "${TYPE}" != "rsa" ]]; then
   log_f "Unknown certificate type '${TYPE}' requested"
   exit 5
 fi
+
+if [[ "${ACME_DNS_CHALLENGE}" == "y" ]]; then
+  exec /srv/obtain-certificate-dns.sh "$@"
+fi
 DOMAINS_FILE=${ACME_BASE}/${CERT_DOMAIN}/domains
 CERT=${ACME_BASE}/${CERT_DOMAIN}/${PREFIX}cert.pem
 SHARED_KEY=${ACME_BASE}/acme/${PREFIX}key.pem  # must already exist
@@ -93,8 +97,8 @@ until dig letsencrypt.org +time=3 +tries=1 @unbound > /dev/null; do
   sleep 2
 done
 log_f "Resolver OK"
-log_f "Using command acme-tiny ${DIRECTORY_URL} ${ACME_CONTACT_PARAMETER} --account-key ${ACME_BASE}/acme/account.pem --disable-check --csr ${CSR} --acme-dir /var/www/acme/"
-ACME_RESPONSE=$(acme-tiny ${DIRECTORY_URL} ${ACME_CONTACT_PARAMETER} \
+log_f "Using command acme-tiny ${DIRECTORY_URL} --account-key ${ACME_BASE}/acme/account.pem --disable-check --csr ${CSR} --acme-dir /var/www/acme/"
+ACME_RESPONSE=$(acme-tiny ${DIRECTORY_URL} \
   --account-key ${ACME_BASE}/acme/account.pem \
   --disable-check \
   --csr ${CSR} \

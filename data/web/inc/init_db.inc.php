@@ -4,7 +4,7 @@ function init_db_schema()
   try {
     global $pdo;
 
-    $db_version = "20112024_1105";
+    $db_version = "19022026_1220";
 
     $stmt = $pdo->query("SHOW TABLES LIKE 'versions'");
     $num_results = count($stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -76,7 +76,8 @@ function init_db_schema()
           "superadmin" => "TINYINT(1) NOT NULL DEFAULT '0'",
           "created" => "DATETIME(0) NOT NULL DEFAULT NOW(0)",
           "modified" => "DATETIME ON UPDATE NOW(0)",
-          "active" => "TINYINT(1) NOT NULL DEFAULT '1'"
+          "active" => "TINYINT(1) NOT NULL DEFAULT '1'",
+          "attributes" => "JSON"
         ),
         "keys" => array(
           "primary" => array(
@@ -184,6 +185,8 @@ function init_db_schema()
           "private_comment" => "TEXT",
           "public_comment" => "TEXT",
           "sogo_visible" => "TINYINT(1) NOT NULL DEFAULT '1'",
+          "internal" => "TINYINT(1) NOT NULL DEFAULT '0'",
+          "sender_allowed" => "TINYINT(1) NOT NULL DEFAULT '1'",
           "active" => "TINYINT(1) NOT NULL DEFAULT '1'"
         ),
         "keys" => array(
@@ -345,10 +348,14 @@ function init_db_schema()
           "notified" => "TINYINT(1) NOT NULL DEFAULT '0'",
           "created" => "DATETIME(0) NOT NULL DEFAULT NOW(0)",
           "user" => "VARCHAR(255) NOT NULL DEFAULT 'unknown'",
+          "qhash" => "VARCHAR(64)",
         ),
         "keys" => array(
           "primary" => array(
             "" => array("id")
+          ),
+          "key" => array(
+            "qhash" => array("qhash")
           )
         ),
         "attr" => "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC"
@@ -368,6 +375,7 @@ function init_db_schema()
           "custom_attributes" => "JSON NOT NULL DEFAULT ('{}')",
           "kind" => "VARCHAR(100) NOT NULL DEFAULT ''",
           "multiple_bookings" => "INT NOT NULL DEFAULT -1",
+          "authsource" => "ENUM('mailcow', 'keycloak', 'generic-oidc', 'ldap') DEFAULT 'mailcow'",
           "created" => "DATETIME(0) NOT NULL DEFAULT NOW(0)",
           "modified" => "DATETIME ON UPDATE CURRENT_TIMESTAMP",
           "active" => "TINYINT(1) NOT NULL DEFAULT '1'"
@@ -470,6 +478,23 @@ function init_db_schema()
         ),
         "attr" => "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC"
       ),
+      "mta_sts" => array(
+        "cols" => array(
+          "id" => "BIGINT NOT NULL",
+          "domain" => "VARCHAR(255) NOT NULL",
+          "version" => "VARCHAR(255) NOT NULL",
+          "mode" => "VARCHAR(255) NOT NULL",
+          "mx" => "VARCHAR(255) NOT NULL",
+          "max_age" => "VARCHAR(255) NOT NULL",
+          "active" => "TINYINT(1) NOT NULL DEFAULT '1'"
+        ),
+        "keys" => array(
+          "primary" => array(
+            "" => array("domain")
+          )
+        ),
+        "attr" => "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC"
+      ),
       "user_acl" => array(
         "cols" => array(
           "username" => "VARCHAR(255) NOT NULL",
@@ -531,7 +556,8 @@ function init_db_schema()
           "description" => "TEXT NOT NULL",
           "created" => "DATETIME(0) NOT NULL DEFAULT NOW(0)",
           "modified" => "DATETIME ON UPDATE CURRENT_TIMESTAMP",
-          "validity" => "INT(11)"
+          "validity" => "INT(11)",
+          "permanent" => "TINYINT(1) NOT NULL DEFAULT '0'"
         ),
         "keys" => array(
           "primary" => array(
@@ -571,6 +597,20 @@ function init_db_schema()
         "keys" => array(
           "primary" => array(
             "" => array("id")
+          )
+        ),
+        "attr" => "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC"
+      ),
+      "identity_provider" => array(
+        "cols" => array(
+          "key" => "VARCHAR(255) NOT NULL",
+          "value" => "TEXT NOT NULL",
+          "created" => "DATETIME(0) NOT NULL DEFAULT NOW(0)",
+          "modified" => "DATETIME ON UPDATE CURRENT_TIMESTAMP"
+        ),
+        "keys" => array(
+          "primary" => array(
+            "" => array("key")
           )
         ),
         "attr" => "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC"
@@ -1300,6 +1340,14 @@ function init_db_schema()
       $pdo->query($create);
     }
 
+    // Clear old app_passwd log entries
+    $pdo->exec("DELETE FROM logs
+      WHERE role != 'unauthenticated'
+        AND JSON_EXTRACT(`call`, '$[0]') = 'app_passwd'
+        AND JSON_EXTRACT(`call`, '$[1]') = 'edit'
+        AND (JSON_CONTAINS_PATH(`call`, 'one', '$[2].password')
+          OR JSON_CONTAINS_PATH(`call`, 'one', '$[2].password2'));");
+
     // Mitigate imapsync argument injection issue
     $pdo->query("UPDATE `imapsync` SET `custom_params` = ''
       WHERE `custom_params` LIKE '%pipemess%'
@@ -1343,11 +1391,18 @@ function init_db_schema()
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.passwd_update', \"0\") WHERE JSON_VALUE(`attributes`, '$.passwd_update') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.relayhost', \"0\") WHERE JSON_VALUE(`attributes`, '$.relayhost') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.force_pw_update', \"0\") WHERE JSON_VALUE(`attributes`, '$.force_pw_update') IS NULL;");
+    $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.force_tfa', \"0\") WHERE JSON_VALUE(`attributes`, '$.force_tfa') IS NULL;");
+    // admin attributes
+    $pdo->query("UPDATE `admin` SET `attributes` = '{}' WHERE `attributes` = '' OR `attributes` IS NULL;");
+    $pdo->query("UPDATE `admin` SET `attributes` =  JSON_SET(`attributes`, '$.force_tfa', \"0\") WHERE JSON_VALUE(`attributes`, '$.force_tfa') IS NULL;");
+    $pdo->query("UPDATE `admin` SET `attributes` =  JSON_SET(`attributes`, '$.force_pw_update', \"0\") WHERE JSON_VALUE(`attributes`, '$.force_pw_update') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.sieve_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.sieve_access') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.sogo_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.sogo_access') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.imap_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.imap_access') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.pop3_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.pop3_access') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.smtp_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.smtp_access') IS NULL;");
+    $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.eas_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.eas_access') IS NULL;");
+    $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.dav_access', \"1\") WHERE JSON_VALUE(`attributes`, '$.dav_access') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.mailbox_format', \"maildir:\") WHERE JSON_VALUE(`attributes`, '$.mailbox_format') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.quarantine_notification', \"never\") WHERE JSON_VALUE(`attributes`, '$.quarantine_notification') IS NULL;");
     $pdo->query("UPDATE `mailbox` SET `attributes` =  JSON_SET(`attributes`, '$.quarantine_category', \"reject\") WHERE JSON_VALUE(`attributes`, '$.quarantine_category') IS NULL;");
@@ -1400,6 +1455,7 @@ function init_db_schema()
         "rl_frame" => "s",
         "rl_value" => "",
         "force_pw_update" => intval($GLOBALS['MAILBOX_DEFAULT_ATTRIBUTES']['force_pw_update']),
+        "force_tfa" => intval($GLOBALS['MAILBOX_DEFAULT_ATTRIBUTES']['force_tfa']),
         "sogo_access" => intval($GLOBALS['MAILBOX_DEFAULT_ATTRIBUTES']['sogo_access']),
         "active" => 1,
         "tls_enforce_in" => intval($GLOBALS['MAILBOX_DEFAULT_ATTRIBUTES']['tls_enforce_in']),
@@ -1455,6 +1511,9 @@ function init_db_schema()
       ));
     }
 
+    // remove old sogo views and triggers
+    $pdo->query("DROP TRIGGER IF EXISTS sogo_update_password");
+
     if (php_sapi_name() == "cli") {
       echo "DB initialization completed" . PHP_EOL;
     } else {
@@ -1464,6 +1523,10 @@ function init_db_schema()
         'msg' => 'db_init_complete'
       );
     }
+
+    // fill quarantine.qhash
+    $pdo->query("UPDATE `quarantine` SET `qhash` = SHA2(CONCAT(`id`, `qid`), 256) WHERE ISNULL(`qhash`)");
+
   } catch (PDOException $e) {
     if (php_sapi_name() == "cli") {
       echo "DB initialization failed: " . print_r($e, true) . PHP_EOL;
@@ -1478,6 +1541,7 @@ function init_db_schema()
 }
 if (php_sapi_name() == "cli") {
   include '/web/inc/vars.inc.php';
+  include '/web/inc/functions.inc.php';
   include '/web/inc/functions.docker.inc.php';
   // $now = new DateTime();
   // $mins = $now->getOffset() / 60;
@@ -1499,9 +1563,7 @@ if (php_sapi_name() == "cli") {
   if (intval($res['OK_C']) === 2) {
     // Be more precise when replacing into _sogo_static_view, col orders may change
     try {
-      $stmt = $pdo->query("REPLACE INTO _sogo_static_view (`c_uid`, `domain`, `c_name`, `c_password`, `c_cn`, `mail`, `aliases`, `ad_aliases`, `ext_acl`, `kind`, `multiple_bookings`)
-        SELECT `c_uid`, `domain`, `c_name`, `c_password`, `c_cn`, `mail`, `aliases`, `ad_aliases`, `ext_acl`, `kind`, `multiple_bookings` from sogo_view");
-      $stmt = $pdo->query("DELETE FROM _sogo_static_view WHERE `c_uid` NOT IN (SELECT `username` FROM `mailbox` WHERE `active` = '1');");
+      update_sogo_static_view();
       echo "Fixed _sogo_static_view" . PHP_EOL;
     } catch (Exception $e) {
       // Dunno
